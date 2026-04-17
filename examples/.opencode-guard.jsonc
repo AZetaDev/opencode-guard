@@ -2,6 +2,7 @@
   // Default deny keeps the plugin fail-closed.
   "version": 1,
   "defaultAction": "deny",
+  "symlinkPolicy": "deny",
   "rules": [
     {
       "id": "allow-readme-read",

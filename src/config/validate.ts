@@ -1,5 +1,21 @@
-import { DEFAULT_ACTION } from "./constants.js";
+import { CONFIG_VERSION, DEFAULT_ACTION, SYMLINK_POLICY } from "./constants.js";
 import type { GuardConfig, GuardRule, ValidationIssue, ValidationResult } from "./types.js";
+
+const TOP_LEVEL_KEYS = {
+  VERSION: "version",
+  DEFAULT_ACTION: "defaultAction",
+  SYMLINK_POLICY: "symlinkPolicy",
+  RULES: "rules",
+} as const;
+
+const RULE_KEYS = {
+  ID: "id",
+  ACTION: "action",
+  COMMAND: "command",
+  PATH_PREFIX: "pathPrefix",
+} as const;
+
+const COMMAND_PATTERN = /^[a-z0-9:_-]+$/;
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -7,6 +23,33 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
 
 function isGuardAction(value: unknown): value is GuardRule["action"] {
   return value === DEFAULT_ACTION.ALLOW || value === DEFAULT_ACTION.DENY;
+}
+
+function isExactKeySet(
+  value: Record<string, unknown>,
+  expectedKeys: readonly string[],
+  path: string,
+  issues: ValidationIssue[],
+): boolean {
+  const actualKeys = Object.keys(value);
+  const expectedKeySet = new Set(expectedKeys);
+  let ok = true;
+
+  for (const key of actualKeys) {
+    if (!expectedKeySet.has(key)) {
+      issues.push({ path: `${path}.${key}`, message: "Unexpected property." });
+      ok = false;
+    }
+  }
+
+  for (const key of expectedKeys) {
+    if (!Object.prototype.hasOwnProperty.call(value, key)) {
+      issues.push({ path: `${path}.${key}`, message: "Missing required property." });
+      ok = false;
+    }
+  }
+
+  return ok;
 }
 
 function readNonEmptyString(value: unknown, path: string, issues: ValidationIssue[]): string | null {
@@ -33,6 +76,8 @@ function validateRule(value: unknown, index: number, issues: ValidationIssue[]):
     return null;
   }
 
+  isExactKeySet(value, Object.values(RULE_KEYS), pathBase, issues);
+
   const id = readNonEmptyString(value.id, `${pathBase}.id`, issues);
   const command = readNonEmptyString(value.command, `${pathBase}.command`, issues);
   const pathPrefix = readNonEmptyString(value.pathPrefix, `${pathBase}.pathPrefix`, issues);
@@ -45,8 +90,22 @@ function validateRule(value: unknown, index: number, issues: ValidationIssue[]):
     return null;
   }
 
+  if (!COMMAND_PATTERN.test(command)) {
+    issues.push({ path: `${pathBase}.command`, message: "Expected a lowercase command token." });
+  }
+
   if (!pathPrefix.startsWith("/")) {
     issues.push({ path: `${pathBase}.pathPrefix`, message: "Expected an absolute path prefix." });
+    return null;
+  }
+
+  if (pathPrefix !== "/" && pathPrefix.endsWith("/")) {
+    issues.push({ path: `${pathBase}.pathPrefix`, message: "Trailing slash is not allowed." });
+    return null;
+  }
+
+  if (pathPrefix.includes("//") || pathPrefix.includes("/./") || pathPrefix.includes("/../") || pathPrefix.endsWith("/.") || pathPrefix.endsWith("/..")) {
+    issues.push({ path: `${pathBase}.pathPrefix`, message: "Path prefix must already be normalized." });
     return null;
   }
 
@@ -68,12 +127,18 @@ export function validateGuardConfig(value: unknown): ValidationResult & { config
     };
   }
 
-  if (value.version !== 1) {
+  isExactKeySet(value, Object.values(TOP_LEVEL_KEYS), "$", issues);
+
+  if (value.version !== CONFIG_VERSION) {
     issues.push({ path: "version", message: "Expected version 1." });
   }
 
   if (value.defaultAction !== DEFAULT_ACTION.DENY) {
-    issues.push({ path: "defaultAction", message: "Expected 'deny' for the bootstrap milestone." });
+    issues.push({ path: "defaultAction", message: "Expected 'deny'." });
+  }
+
+  if (value.symlinkPolicy !== SYMLINK_POLICY.DENY) {
+    issues.push({ path: "symlinkPolicy", message: "Expected 'deny'." });
   }
 
   const rawRules = value.rules;
@@ -88,7 +153,24 @@ export function validateGuardConfig(value: unknown): ValidationResult & { config
         .filter((rule): rule is GuardRule => rule !== null)
     : [];
 
-  if (issues.length > 0 || value.version !== 1 || value.defaultAction !== DEFAULT_ACTION.DENY || !Array.isArray(rawRules)) {
+  const ruleIds = new Set<string>();
+
+  for (const rule of rules) {
+    if (ruleIds.has(rule.id)) {
+      issues.push({ path: "rules", message: `Duplicate rule id '${rule.id}'.` });
+      continue;
+    }
+
+    ruleIds.add(rule.id);
+  }
+
+  if (
+    issues.length > 0 ||
+    value.version !== CONFIG_VERSION ||
+    value.defaultAction !== DEFAULT_ACTION.DENY ||
+    value.symlinkPolicy !== SYMLINK_POLICY.DENY ||
+    !Array.isArray(rawRules)
+  ) {
     return {
       ok: false,
       issues,
@@ -99,8 +181,9 @@ export function validateGuardConfig(value: unknown): ValidationResult & { config
     ok: true,
     issues,
     config: {
-      version: 1,
+      version: CONFIG_VERSION,
       defaultAction: DEFAULT_ACTION.DENY,
+      symlinkPolicy: SYMLINK_POLICY.DENY,
       rules,
     },
   };

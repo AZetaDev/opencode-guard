@@ -2,7 +2,7 @@
 
 `opencode-guard` is a standalone, security-first OpenCode plugin project intended to enforce local policy before risky tool execution.
 
-This repository is intentionally isolated from the live AERIS runtime. The first milestone only establishes the bootstrap, architecture boundaries, and a narrow fail-closed core.
+This repository is intentionally isolated from the live AERIS runtime. It now includes a narrow Block 2 implementation for config loading, request preparation, and fail-closed path handling.
 
 ## Security Principles
 
@@ -13,13 +13,15 @@ This repository is intentionally isolated from the live AERIS runtime. The first
 - Avoid shell evaluation, dynamic code execution, and implicit trust in tool input.
 - Keep the bootstrap milestone globally fail-closed with default deny.
 
-## First Milestone
+## Current Milestone
 
 - Standalone git repository under `~/workspace/aeris/plugins/opencode-guard/`
 - Strict TypeScript project bootstrap
-- Initial config contract for `.opencode-guard.jsonc`
-- Narrow rule validator and deterministic policy evaluator
-- Security and architecture docs for later hardening work
+- Real `.opencode-guard.jsonc` loading with JSONC comment stripping
+- Strong config validation with exact-key checks and duplicate rule detection
+- Canonical path handling rooted to an explicit workspace
+- Initial symlink policy with fail-closed denial
+- Prepared request envelope for policy evaluation
 
 ## Planned Layout
 
@@ -31,4 +33,4 @@ This repository is intentionally isolated from the live AERIS runtime. The first
 
 ## Status
 
-This is not yet integrated into OpenCode or AERIS. The next block should add a hardened JSONC loader, canonical path handling, and real integration boundaries for the host plugin API.
+This is still not integrated into OpenCode or AERIS. The next block should add tests, decision/audit reporting, and the host integration adapter.
