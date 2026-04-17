@@ -1,5 +1,6 @@
+import type { Stats } from "node:fs";
 import { lstat, realpath } from "node:fs/promises";
-import path from "node:path";
+import * as path from "node:path";
 
 import { SYMLINK_POLICY, type SymlinkPolicy } from "../config/constants.js";
 
@@ -49,13 +50,33 @@ async function pathExists(pathValue: string): Promise<boolean> {
   try {
     await lstat(pathValue);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && (error.code === "ENOENT" || error.code === "ENOTDIR")) {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
+function isNodeErrorWithCode(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error;
+}
+
+async function readPathStats(pathValue: string): Promise<Stats> {
+  try {
+    return await lstat(pathValue);
+  } catch (error) {
+    if (isNodeErrorWithCode(error) && (error.code === "ENOENT" || error.code === "ENOTDIR")) {
+      throw new GuardPathError(`Path does not exist: '${pathValue}'.`);
+    }
+
+    throw error;
   }
 }
 
 async function assertNoSymlink(pathValue: string): Promise<void> {
-  const stats = await lstat(pathValue);
+  const stats = await readPathStats(pathValue);
 
   if (stats.isSymbolicLink()) {
     throw new GuardPathError(`Symlink access is denied for '${pathValue}'.`);

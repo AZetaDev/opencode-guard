@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import path from "node:path";
+import * as path from "node:path";
 
 import { CONFIG_FILENAME } from "./constants.js";
 import type { LoadedGuardConfig } from "./types.js";

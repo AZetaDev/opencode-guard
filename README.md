@@ -31,6 +31,14 @@ This repository is intentionally isolated from the live AERIS runtime. It now in
 - `docs/`: architecture and security model
 - `examples/`: sample `.opencode-guard.jsonc`
 
+## Validation
+
+- `npm run typecheck`: strict TypeScript check
+- `npm test`: build plus Node-native tests
+- `npm run validate`: typecheck plus tests
+
+This repo intentionally relies on standard Node 20 tooling for validation. A project-local Node runtime can be used when the host environment does not already provide a working `node` and `npm`.
+
 ## Status
 
 This is still not integrated into OpenCode or AERIS. The next block should add tests, decision/audit reporting, and the host integration adapter.
