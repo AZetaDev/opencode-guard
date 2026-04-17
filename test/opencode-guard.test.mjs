@@ -5,12 +5,14 @@ import * as path from "node:path";
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 
 import {
+  AUDIT_TARGET_PATH_KIND,
   GuardConfigError,
   GuardPathError,
   canonicalizeTargetPath,
   evaluateHostOperation,
   evaluateOperation,
   HOST_FAILURE_STAGE,
+  HOST_REASON_CODE,
   loadGuardConfig,
   prepareOperationRequest,
 } from "../dist/index.js";
@@ -214,8 +216,21 @@ test("evaluateHostOperation allows valid host input only after config load and r
 
     assert.equal(result.decision.action, "allow");
     assert.equal(result.decision.matchedRuleId, "allow-docs-read");
+    assert.equal(result.hostMessage, "Operation allowed by local security policy.");
+    assert.equal(result.reasonCode, HOST_REASON_CODE.ALLOW_RULE_MATCH);
     assert.equal(result.failureStage, HOST_FAILURE_STAGE.NONE);
     assert.equal(result.configPath, path.join(workspaceRoot, ".opencode-guard.jsonc"));
+    assert.deepEqual(result.audit, {
+      action: "allow",
+      failureStage: HOST_FAILURE_STAGE.NONE,
+      reasonCode: HOST_REASON_CODE.ALLOW_RULE_MATCH,
+      matchedRuleId: "allow-docs-read",
+      configLoaded: true,
+      configPath: path.join(workspaceRoot, ".opencode-guard.jsonc"),
+      command: "read",
+      targetPathKind: AUDIT_TARGET_PATH_KIND.RELATIVE,
+      targetPathExists: true,
+    });
   });
 });
 
@@ -235,9 +250,13 @@ test("evaluateHostOperation denies malformed raw host input before evaluation", 
     });
 
     assert.equal(result.decision.action, "deny");
+    assert.equal(result.hostMessage, "Operation denied: invalid host request.");
+    assert.equal(result.reasonCode, HOST_REASON_CODE.DENY_HOST_INPUT);
     assert.equal(result.failureStage, HOST_FAILURE_STAGE.INPUT);
     assert.equal(result.configPath, null);
     assert.match(result.decision.reason, /Unexpected property/);
+    assert.equal(result.audit.targetPathKind, AUDIT_TARGET_PATH_KIND.RELATIVE);
+    assert.equal(result.audit.command, "read");
   });
 });
 
@@ -256,9 +275,13 @@ test("evaluateHostOperation denies missing config before policy execution", asyn
     });
 
     assert.equal(result.decision.action, "deny");
+    assert.equal(result.hostMessage, "Operation denied: security policy unavailable.");
+    assert.equal(result.reasonCode, HOST_REASON_CODE.DENY_CONFIG_LOAD);
     assert.equal(result.failureStage, HOST_FAILURE_STAGE.CONFIG);
     assert.equal(result.configPath, null);
     assert.match(result.decision.reason, /Configuration could not be loaded safely/);
+    assert.equal(result.audit.configLoaded, false);
+    assert.equal(result.audit.command, "read");
   });
 });
 
@@ -291,9 +314,12 @@ test("evaluateHostOperation denies symlinked workspace roots through request pre
     });
 
     assert.equal(result.decision.action, "deny");
+    assert.equal(result.hostMessage, "Operation denied: target path rejected by security policy.");
+    assert.equal(result.reasonCode, HOST_REASON_CODE.DENY_PATH_POLICY);
     assert.equal(result.failureStage, HOST_FAILURE_STAGE.PATH);
     assert.equal(result.configPath, path.join(realWorkspaceRoot, ".opencode-guard.jsonc"));
     assert.match(result.decision.reason, /Workspace root must not be a symlinked path/);
+    assert.equal(result.audit.targetPathExists, null);
   });
 });
 
@@ -311,5 +337,115 @@ test("canonicalizeTargetPath preserves missing in-workspace targets as unresolve
     assert.equal(result.workspaceRoot, workspaceRoot);
     assert.equal(result.canonicalTargetPath, path.join(workspaceRoot, "docs", "missing.md"));
     assert.equal(result.targetPathExists, false);
+  });
+});
+
+test("evaluateHostOperation redacts default-deny host message and audit path details", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    const docsDirectory = path.join(workspaceRoot, "docs");
+    const targetFile = path.join(docsDirectory, "secret.md");
+
+    await mkdir(docsDirectory, { recursive: true });
+    await writeFile(targetFile, "secret", "utf8");
+    await writeFile(
+      path.join(workspaceRoot, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": []
+      }`,
+      "utf8",
+    );
+
+    const result = await evaluateHostOperation({
+      configDirectory: workspaceRoot,
+      input: {
+        command: "read",
+        targetPath: "./docs/secret.md",
+        workspaceRoot,
+      },
+    });
+
+    assert.equal(result.decision.action, "deny");
+    assert.equal(result.hostMessage, "Operation denied by local security policy.");
+    assert.equal(result.reasonCode, HOST_REASON_CODE.DENY_POLICY_DEFAULT);
+    assert.match(result.decision.reason, /No matching rule/);
+    assert.ok(!result.hostMessage.includes("secret.md"));
+    assert.equal("targetPath" in result.audit, false);
+    assert.equal(result.audit.targetPathKind, AUDIT_TARGET_PATH_KIND.RELATIVE);
+    assert.equal(result.audit.targetPathExists, true);
+  });
+});
+
+test("canonicalizeTargetPath rejects absolute paths outside the workspace root", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    const outsidePath = path.join(tempDir, "outside.txt");
+
+    await mkdir(workspaceRoot, { recursive: true });
+    await writeFile(outsidePath, "outside", "utf8");
+
+    await assert.rejects(
+      () =>
+        canonicalizeTargetPath({
+          workspaceRoot,
+          targetPath: outsidePath,
+          symlinkPolicy: "deny",
+        }),
+      (error) => {
+        assert.ok(error instanceof GuardPathError);
+        assert.match(error.message, /escapes the workspace root/);
+        return true;
+      },
+    );
+  });
+});
+
+test("canonicalizeTargetPath rejects symlinked path segments", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    const realDirectory = path.join(workspaceRoot, "real");
+    const symlinkDirectory = path.join(workspaceRoot, "docs");
+
+    await mkdir(realDirectory, { recursive: true });
+    await writeFile(path.join(realDirectory, "guide.md"), "guide", "utf8");
+    await symlink(realDirectory, symlinkDirectory);
+
+    await assert.rejects(
+      () =>
+        canonicalizeTargetPath({
+          workspaceRoot,
+          targetPath: path.join(symlinkDirectory, "guide.md"),
+          symlinkPolicy: "deny",
+        }),
+      (error) => {
+        assert.ok(error instanceof GuardPathError);
+        assert.match(error.message, /Symlink access is denied/);
+        return true;
+      },
+    );
+  });
+});
+
+test("canonicalizeTargetPath rejects paths containing null bytes", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    await mkdir(workspaceRoot, { recursive: true });
+
+    await assert.rejects(
+      () =>
+        canonicalizeTargetPath({
+          workspaceRoot,
+          targetPath: `./docs/unsafe\u0000name.md`,
+          symlinkPolicy: "deny",
+        }),
+      (error) => {
+        assert.ok(error instanceof GuardPathError);
+        assert.match(error.message, /null byte/);
+        return true;
+      },
+    );
   });
 });

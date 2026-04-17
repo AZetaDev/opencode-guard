@@ -15,6 +15,8 @@ The plugin is meant to reduce accidental or malicious execution of dangerous ope
 - Canonicalize the path before policy evaluation and evaluate only the canonical target.
 - Reject malformed raw host input at the integration boundary.
 - Deny when config loading or request preparation fails before evaluation.
+- Return redacted host-facing messages while keeping structured internal audit data.
+- Keep raw target paths out of audit records to reduce accidental disclosure.
 - No wildcard command execution model in the initial evaluator.
 - No regex-based path matching in the initial evaluator.
 - No environment-variable expansion in config.
@@ -25,8 +27,8 @@ The plugin is meant to reduce accidental or malicious execution of dangerous ope
 - JSONC support is intentionally narrow and currently limited to comment stripping before `JSON.parse`.
 - Cross-platform behavior should be verified with automated tests before wider use.
 - Host integration now preserves the trusted prepared-request boundary, but runtime-specific request mapping still needs verification in a real host.
-- Logging must avoid leaking sensitive file paths or arguments by default.
+- Audit consumers still need explicit retention and sink controls outside this library.
 
 ## Secure MVP Direction
 
-The next milestone should add redacted decision reporting and more host-mapping tests without widening the rule surface prematurely.
+The next milestone should add runtime-specific host mapping and broader cross-platform path verification without widening the rule surface prematurely.

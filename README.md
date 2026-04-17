@@ -23,6 +23,7 @@ This repository is intentionally isolated from the live AERIS runtime. It now in
 - Initial symlink policy with fail-closed denial
 - Prepared request envelope for policy evaluation
 - Host adapter with fail-closed integration behavior
+- Structured audit output with redacted host-facing messages
 
 ## Planned Layout
 
@@ -42,4 +43,4 @@ This repo intentionally relies on standard Node 20 tooling for validation. A pro
 
 ## Status
 
-This is still isolated from OpenCode and AERIS runtime wiring. The next block should add decision/audit reporting, host-facing redaction controls, and more filesystem edge-case coverage.
+This is still isolated from OpenCode and AERIS runtime wiring. The next block should add runtime-specific host request mapping and broader platform/path verification.

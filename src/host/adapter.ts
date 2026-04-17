@@ -4,7 +4,15 @@ import { evaluateOperation } from "../core/evaluate.js";
 import { GuardPathError } from "../core/paths.js";
 import { GuardRequestError, prepareOperationRequest } from "../core/request.js";
 import { DEFAULT_ACTION } from "../config/constants.js";
-import { HOST_FAILURE_STAGE, type EvaluateHostOperationOptions, type HostEvaluationResult, type HostOperationInput } from "./types.js";
+import {
+  classifyTargetPathKind,
+  createConfigAuditContext,
+  createInputAuditContext,
+  createLoadedAuditContext,
+  createReportedDecision,
+  createSuccessAuditContext,
+} from "./reporting.js";
+import { HOST_FAILURE_STAGE, HOST_REASON_CODE, type EvaluateHostOperationOptions, type HostEvaluationResult, type HostOperationInput } from "./types.js";
 
 const HOST_INPUT_KEYS = {
   COMMAND: "command",
@@ -32,16 +40,22 @@ function validateNonEmptyString(value: unknown, path: string, issues: Validation
   return normalizedValue;
 }
 
-function denyResult(reason: string, failureStage: HostEvaluationResult["failureStage"], configPath: string | null): HostEvaluationResult {
-  return {
-    decision: {
+function denyResult(
+  reason: string,
+  reasonCode: HostEvaluationResult["reasonCode"],
+  failureStage: HostEvaluationResult["failureStage"],
+  context: Parameters<typeof createReportedDecision>[3],
+): HostEvaluationResult {
+  return createReportedDecision(
+    {
       action: DEFAULT_ACTION.DENY,
       reason,
       matchedRuleId: null,
     },
+    reasonCode,
     failureStage,
-    configPath,
-  };
+    context,
+  );
 }
 
 function parseHostOperationInput(input: unknown): HostOperationInput | ValidationIssue[] {
@@ -106,9 +120,16 @@ async function prepareLoadedRequest(loadedConfig: LoadedGuardConfig, input: Host
 
 export async function evaluateHostOperation(options: EvaluateHostOperationOptions): Promise<HostEvaluationResult> {
   const parsedInput = parseHostOperationInput(options.input);
+  const inputTargetPathKind = isObjectRecord(options.input) ? classifyTargetPathKind(options.input.targetPath) : classifyTargetPathKind(undefined);
+  const inputCommand = isObjectRecord(options.input) && typeof options.input.command === "string" ? options.input.command.trim() : null;
 
   if (Array.isArray(parsedInput)) {
-    return denyResult(inputIssuesToReason(parsedInput), HOST_FAILURE_STAGE.INPUT, null);
+    return denyResult(
+      inputIssuesToReason(parsedInput),
+      HOST_REASON_CODE.DENY_HOST_INPUT,
+      HOST_FAILURE_STAGE.INPUT,
+      createInputAuditContext(inputCommand, inputTargetPathKind),
+    );
   }
 
   let loadedConfig: LoadedGuardConfig;
@@ -117,30 +138,57 @@ export async function evaluateHostOperation(options: EvaluateHostOperationOption
     loadedConfig = await loadGuardConfig(options.configDirectory);
   } catch (error) {
     if (error instanceof GuardConfigError) {
-      return denyResult(configFailureReason(error), HOST_FAILURE_STAGE.CONFIG, null);
+      return denyResult(
+        configFailureReason(error),
+        HOST_REASON_CODE.DENY_CONFIG_LOAD,
+        HOST_FAILURE_STAGE.CONFIG,
+        createConfigAuditContext(parsedInput.command, inputTargetPathKind),
+      );
     }
 
-    return denyResult("Internal adapter error before policy evaluation.", HOST_FAILURE_STAGE.INTERNAL, null);
+    return denyResult(
+      "Internal adapter error before policy evaluation.",
+      HOST_REASON_CODE.DENY_INTERNAL,
+      HOST_FAILURE_STAGE.INTERNAL,
+      createConfigAuditContext(parsedInput.command, inputTargetPathKind),
+    );
   }
 
   try {
     const preparedRequest = await prepareLoadedRequest(loadedConfig, parsedInput);
     const decision = evaluateOperation(loadedConfig.config, preparedRequest);
+    const reasonCode = decision.action === DEFAULT_ACTION.ALLOW ? HOST_REASON_CODE.ALLOW_RULE_MATCH : HOST_REASON_CODE.DENY_POLICY_DEFAULT;
 
-    return {
+    return createReportedDecision(
       decision,
-      failureStage: HOST_FAILURE_STAGE.NONE,
-      configPath: loadedConfig.configPath,
-    };
+      reasonCode,
+      HOST_FAILURE_STAGE.NONE,
+      createSuccessAuditContext(parsedInput.command, inputTargetPathKind, preparedRequest.targetPathExists, loadedConfig.configPath),
+    );
   } catch (error) {
     if (error instanceof GuardPathError) {
-      return denyResult(pathFailureReason(error), HOST_FAILURE_STAGE.PATH, loadedConfig.configPath);
+      return denyResult(
+        pathFailureReason(error),
+        HOST_REASON_CODE.DENY_PATH_POLICY,
+        HOST_FAILURE_STAGE.PATH,
+        createLoadedAuditContext(parsedInput.command, inputTargetPathKind, loadedConfig.configPath),
+      );
     }
 
     if (error instanceof GuardRequestError) {
-      return denyResult(requestFailureReason(error), HOST_FAILURE_STAGE.REQUEST, loadedConfig.configPath);
+      return denyResult(
+        requestFailureReason(error),
+        HOST_REASON_CODE.DENY_REQUEST_NORMALIZATION,
+        HOST_FAILURE_STAGE.REQUEST,
+        createLoadedAuditContext(parsedInput.command, inputTargetPathKind, loadedConfig.configPath),
+      );
     }
 
-    return denyResult("Internal adapter error during guarded evaluation.", HOST_FAILURE_STAGE.INTERNAL, loadedConfig.configPath);
+    return denyResult(
+      "Internal adapter error during guarded evaluation.",
+      HOST_REASON_CODE.DENY_INTERNAL,
+      HOST_FAILURE_STAGE.INTERNAL,
+      createLoadedAuditContext(parsedInput.command, inputTargetPathKind, loadedConfig.configPath),
+    );
   }
 }

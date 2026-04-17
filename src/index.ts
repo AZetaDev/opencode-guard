@@ -7,4 +7,21 @@ export { GuardRequestError, prepareOperationRequest } from "./core/request.js";
 export type { GuardDecision, OperationRequest, PreparedOperationRequest } from "./core/types.js";
 export { evaluateOperation } from "./core/evaluate.js";
 export { evaluateHostOperation } from "./host/adapter.js";
-export { HOST_FAILURE_STAGE, type EvaluateHostOperationOptions, type HostEvaluationResult, type HostFailureStage, type HostOperationInput } from "./host/types.js";
+export {
+  classifyTargetPathKind,
+  createReportedDecision,
+  type AuditContext,
+  type ReportedDecision,
+} from "./host/reporting.js";
+export {
+  AUDIT_TARGET_PATH_KIND,
+  HOST_FAILURE_STAGE,
+  HOST_REASON_CODE,
+  type AuditTargetPathKind,
+  type EvaluateHostOperationOptions,
+  type HostAuditRecord,
+  type HostEvaluationResult,
+  type HostFailureStage,
+  type HostOperationInput,
+  type HostReasonCode,
+} from "./host/types.js";
