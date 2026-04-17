@@ -1,0 +1,13 @@
+{
+  // Default deny keeps the plugin fail-closed.
+  "version": 1,
+  "defaultAction": "deny",
+  "rules": [
+    {
+      "id": "allow-readme-read",
+      "action": "allow",
+      "command": "read",
+      "pathPrefix": "/workspace/project/README.md"
+    }
+  ]
+}
