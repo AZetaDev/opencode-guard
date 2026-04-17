@@ -6,3 +6,5 @@ export { GuardPathError, canonicalizeTargetPath } from "./core/paths.js";
 export { GuardRequestError, prepareOperationRequest } from "./core/request.js";
 export type { GuardDecision, OperationRequest, PreparedOperationRequest } from "./core/types.js";
 export { evaluateOperation } from "./core/evaluate.js";
+export { evaluateHostOperation } from "./host/adapter.js";
+export { HOST_FAILURE_STAGE, type EvaluateHostOperationOptions, type HostEvaluationResult, type HostFailureStage, type HostOperationInput } from "./host/types.js";

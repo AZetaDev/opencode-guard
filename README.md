@@ -2,7 +2,7 @@
 
 `opencode-guard` is a standalone, security-first OpenCode plugin project intended to enforce local policy before risky tool execution.
 
-This repository is intentionally isolated from the live AERIS runtime. It now includes a narrow Block 2 implementation for config loading, request preparation, and fail-closed path handling.
+This repository is intentionally isolated from the live AERIS runtime. It now includes a narrow host adapter that forces raw host input through config loading and canonical request preparation before policy evaluation.
 
 ## Security Principles
 
@@ -22,6 +22,7 @@ This repository is intentionally isolated from the live AERIS runtime. It now in
 - Canonical path handling rooted to an explicit workspace
 - Initial symlink policy with fail-closed denial
 - Prepared request envelope for policy evaluation
+- Host adapter with fail-closed integration behavior
 
 ## Planned Layout
 
@@ -41,4 +42,4 @@ This repo intentionally relies on standard Node 20 tooling for validation. A pro
 
 ## Status
 
-This is still not integrated into OpenCode or AERIS. The next block should add tests, decision/audit reporting, and the host integration adapter.
+This is still isolated from OpenCode and AERIS runtime wiring. The next block should add decision/audit reporting, host-facing redaction controls, and more filesystem edge-case coverage.
