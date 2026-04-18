@@ -4,6 +4,19 @@
 
 Provide a small, fail-closed adapter from an OpenCode-style runtime envelope into the guarded host evaluation path.
 
+## Mental Model
+
+The OpenCode adapter is only the entrypoint.
+
+Its job is to:
+
+1. accept an OpenCode-style runtime envelope
+2. validate that the envelope matches a supported file-tool shape
+3. map that envelope into the generic guarded host request
+4. pass the mapped request into the core enforcement flow
+
+It does not bypass the core guard. It feeds into it.
+
 ## Package Entry Points
 
 - Root import: `opencode-guard`
@@ -19,6 +32,8 @@ Only these file-oriented tools are mapped:
 - `edit`
 
 Everything else is denied before policy evaluation.
+
+That means unsupported tools do not fall through to a weaker code path. They are denied immediately.
 
 ## Required Envelope Shape
 
@@ -71,8 +86,33 @@ Unexpected keys or wrong value types cause a fail-closed deny before policy eval
 - Windows-style absolute syntax and backslash-separated paths are rejected in this Linux runtime.
 - Raw runtime input still flows through config loading and canonical request preparation before evaluation.
 
+## End-To-End Flow
+
+```text
+OpenCode envelope
+  -> adapter validates supported tool shape
+  -> adapter maps to generic host request
+  -> config is loaded from configDirectory
+  -> path is canonicalized and checked
+  -> user policy rules are evaluated
+  -> host receives structured decision result
+```
+
 ## Example
 
 See `examples/opencode-runtime-envelope.json` for a minimal `read` call example.
 
 For the matching policy file format, see `docs/configuration.md`.
+
+## What The Host Gets Back
+
+The adapter returns a structured result that includes:
+
+- `decision.action`: `allow` or `deny`
+- `decision.reason`: internal decision explanation
+- `hostMessage`: redacted host-facing text
+- `reasonCode`: structured reason category
+- `failureStage`: where evaluation failed or completed
+- `audit`: structured audit-safe metadata
+
+That lets the host separate user-facing communication from internal observability.

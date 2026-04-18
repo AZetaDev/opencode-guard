@@ -146,6 +146,100 @@ Host tool call
   -> allow/deny decision is returned
 ```
 
+## Decision Flow
+
+For a newcomer, the easiest mental model is:
+
+1. The host/runtime sends a file-tool request.
+2. `opencode-guard` validates the request envelope before trusting it.
+3. `opencode-guard` loads and validates `.opencode-guard.jsonc`.
+4. Fixed internal protections normalize and constrain the path.
+5. The user-defined rules are checked in order.
+6. The plugin returns a structured allow/deny result.
+
+The important split is:
+
+- the host provides the request
+- the plugin enforces fixed protections
+- `.opencode-guard.jsonc` provides the project-specific policy
+
+## What The Host Sends
+
+At runtime, the plugin needs three core pieces of information:
+
+- the workspace root
+- the tool name
+- the target file path
+
+OpenCode-style example:
+
+```json
+{
+  "session": {
+    "workspaceRoot": "/workspace/project"
+  },
+  "tool": {
+    "name": "read",
+    "input": {
+      "filePath": "./README.md"
+    }
+  }
+}
+```
+
+Generic host-adapter example:
+
+```json
+{
+  "command": "read",
+  "targetPath": "./README.md",
+  "workspaceRoot": "/workspace/project"
+}
+```
+
+## What The Plugin Validates Internally
+
+Before any user rule is applied, `opencode-guard` enforces its fixed protection base.
+
+That includes:
+
+- request shape validation
+- strict config parsing and schema validation
+- default-deny posture
+- canonical path normalization
+- workspace-root containment
+- symlink denial
+- runtime path syntax checks for the current Linux-oriented model
+
+These checks are not user-editable policy knobs in the current product.
+
+## What `.opencode-guard.jsonc` Customizes
+
+The config file customizes the policy layer inside those fixed guardrails.
+
+Today that means:
+
+- ordered rules
+- `allow` and `deny` rule actions
+- exact command matching
+- one or more absolute normalized path prefixes per rule
+
+The config does not disable the fixed protections above.
+
+## Step-By-Step Example
+
+Imagine the host asks to read `./docs/guide.md` inside `/workspace/project`.
+
+1. The adapter checks that the incoming request shape is valid.
+2. The plugin loads `/workspace/project/.opencode-guard.jsonc`.
+3. The target path is normalized to an absolute canonical path.
+4. If the path escapes the workspace or crosses a denied symlink, the request is denied immediately.
+5. If the path is safe, the rules are evaluated from top to bottom.
+6. The first matching rule decides the action.
+7. If nothing matches, the request is denied by default.
+
+That means the policy file is important, but it is not the only layer making the decision.
+
 ## Install
 
 ```bash
@@ -222,6 +316,12 @@ if (result.decision.action === "deny") {
 }
 ```
 
+The host can use the result in a straightforward way:
+
+- `decision.action` tells the host whether to proceed
+- `hostMessage` is safe for user-visible output
+- `audit` is for structured logging or telemetry
+
 Example result shape:
 
 ```ts
@@ -251,6 +351,11 @@ Example result shape:
 ```
 
 Use `hostMessage` for user-visible responses and `audit` for structured internal logging or telemetry.
+
+In practical terms:
+
+- if `decision.action === "allow"`, the host may continue with the file operation
+- if `decision.action === "deny"`, the host should stop and surface `hostMessage`
 
 ## Supported OpenCode Tools
 
