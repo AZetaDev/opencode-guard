@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- rename native plugin option from `enabledTools` to clearer `guardedTools`
+- document the runtime-layer comparison between `opencode.json` and `opencode-guard`
+- add native-plugin narrowing test coverage and adoption-path documentation
+
 ## 0.1.0
 
 - initial strong secure MVP for fail-closed OpenCode-style file tool guarding

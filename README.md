@@ -16,6 +16,11 @@ It decides whether a file operation should be allowed before the host runtime ex
 - `opencode.json` is the host/runtime configuration layer
 - `opencode-guard` is the guarded enforcement layer before file-tool execution
 
+| Layer | Purpose |
+| --- | --- |
+| `opencode.json` | tells the runtime what is configured and available |
+| `opencode-guard` | makes a final guarded allow/deny decision before selected file tools execute |
+
 That matters because `opencode-guard` is not just an ignore-pattern list.
 
 It does more than hide files from normal workflows:
@@ -322,12 +327,19 @@ To register the native OpenCode plugin adapter, add the built plugin module to t
 ```jsonc
 {
   "plugin": [
-    "/absolute/path/to/node_modules/opencode-guard/dist/plugin/index.js"
+    [
+      "/absolute/path/to/node_modules/opencode-guard/dist/plugin/index.js",
+      {
+        "guardedTools": ["write", "edit"]
+      }
+    ]
   ]
 }
 ```
 
 The native adapter currently hooks `tool.execute.before` and enforces `opencode-guard` for the supported file-tool surface: `read`, `write`, and `edit`.
+
+If `guardedTools` is omitted, all three supported file tools are guarded.
 
 The host can use the result in a straightforward way:
 

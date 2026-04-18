@@ -33,6 +33,7 @@ It is intentionally narrow:
 - hook used: `tool.execute.before`
 - enforced tools: `read`, `write`, `edit`
 - non-target tools: ignored by the plugin
+- narrowing option: `guardedTools`
 
 This keeps the integration aligned with the current secure MVP instead of pretending to cover the full runtime surface.
 
@@ -122,7 +123,12 @@ Minimal plugin registration shape:
 ```jsonc
 {
   "plugin": [
-    "/absolute/path/to/opencode-guard/dist/plugin/index.js"
+    [
+      "/absolute/path/to/opencode-guard/dist/plugin/index.js",
+      {
+        "guardedTools": ["write", "edit"]
+      }
+    ]
   ]
 }
 ```

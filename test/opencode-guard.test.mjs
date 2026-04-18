@@ -995,3 +995,20 @@ test("createOpencodeGuardPlugin ignores non-target tools", async () => {
     );
   });
 });
+
+test("createOpencodeGuardPlugin respects guardedTools narrowing", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    await mkdir(workspaceRoot, { recursive: true });
+
+    const hooks = await createOpencodeGuardPlugin(
+      { directory: workspaceRoot },
+      { guardedTools: ["write", "edit"] },
+    );
+
+    await hooks["tool.execute.before"](
+      { tool: "read", sessionID: "s1", callID: "c1" },
+      { args: { filePath: "./README.md" } },
+    );
+  });
+});

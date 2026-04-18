@@ -1,7 +1,7 @@
 import { evaluateOpenCodeToolCall } from "../opencode/adapter.js";
 import { OPENCODE_FILE_TOOL, type OpenCodeFileTool } from "../opencode/types.js";
 
-const DEFAULT_ENABLED_TOOLS = [
+const DEFAULT_GUARDED_TOOLS = [
   OPENCODE_FILE_TOOL.READ,
   OPENCODE_FILE_TOOL.WRITE,
   OPENCODE_FILE_TOOL.EDIT,
@@ -10,7 +10,7 @@ const DEFAULT_ENABLED_TOOLS = [
 export interface OpencodeGuardPluginOptions {
   configDirectory?: string;
   workspaceRoot?: string;
-  enabledTools?: OpenCodeFileTool[];
+  guardedTools?: OpenCodeFileTool[];
 }
 
 export interface PluginInputLike {
@@ -31,9 +31,9 @@ export interface PluginHooksLike {
   "tool.execute.before"?: (input: ToolExecuteBeforeInputLike, output: ToolExecuteBeforeOutputLike) => Promise<void>;
 }
 
-function resolveEnabledTools(options?: OpencodeGuardPluginOptions): ReadonlySet<string> {
-  const enabledTools = options?.enabledTools ?? [...DEFAULT_ENABLED_TOOLS];
-  return new Set(enabledTools);
+function resolveGuardedTools(options?: OpencodeGuardPluginOptions): ReadonlySet<string> {
+  const guardedTools = options?.guardedTools ?? [...DEFAULT_GUARDED_TOOLS];
+  return new Set(guardedTools);
 }
 
 function resolveConfigDirectory(input: PluginInputLike, options?: OpencodeGuardPluginOptions): string {
@@ -45,13 +45,13 @@ function resolveWorkspaceRoot(input: PluginInputLike, options?: OpencodeGuardPlu
 }
 
 export async function createOpencodeGuardPlugin(input: PluginInputLike, options?: OpencodeGuardPluginOptions): Promise<PluginHooksLike> {
-  const enabledTools = resolveEnabledTools(options);
+  const guardedTools = resolveGuardedTools(options);
   const configDirectory = resolveConfigDirectory(input, options);
   const workspaceRoot = resolveWorkspaceRoot(input, options);
 
   return {
     "tool.execute.before": async (event, output) => {
-      if (!enabledTools.has(event.tool)) {
+      if (!guardedTools.has(event.tool)) {
         return;
       }
 
