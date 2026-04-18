@@ -5,7 +5,7 @@
 
 `opencode-guard` is a standalone, security-first OpenCode plugin project intended to enforce local policy before risky tool execution.
 
-This repository is intentionally isolated from the live AERIS runtime. It now includes a narrow host adapter that forces raw host input through config loading and canonical request preparation before policy evaluation.
+This repository provides a narrow host adapter that forces raw host input through config loading and canonical request preparation before policy evaluation.
 
 ## Highlights
 
@@ -45,7 +45,7 @@ npm run validate
 
 ## Current Milestone
 
-- Standalone git repository under `~/workspace/aeris/plugins/opencode-guard/`
+- Standalone git repository with isolated development and release workflow
 - Strict TypeScript project bootstrap
 - Real `.opencode-guard.jsonc` loading with JSONC comment stripping
 - Strong config validation with exact-key checks and duplicate rule detection
