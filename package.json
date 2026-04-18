@@ -6,6 +6,14 @@
   "license": "MIT",
   "private": false,
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AZetaDev/opencode-guard.git"
+  },
+  "homepage": "https://github.com/AZetaDev/opencode-guard#readme",
+  "bugs": {
+    "url": "https://github.com/AZetaDev/opencode-guard/issues"
+  },
   "engines": {
     "node": ">=20.11.0"
   },
@@ -30,7 +38,9 @@
     "plugin",
     "opencode",
     "policy",
-    "guard"
+    "guard",
+    "typescript",
+    "tooling"
   ],
   "files": [
     "dist",

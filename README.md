@@ -1,8 +1,19 @@
 # opencode-guard
 
+[![Node >=20.11](https://img.shields.io/badge/node-%3E%3D20.11-339933)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
 `opencode-guard` is a standalone, security-first OpenCode plugin project intended to enforce local policy before risky tool execution.
 
 This repository is intentionally isolated from the live AERIS runtime. It now includes a narrow host adapter that forces raw host input through config loading and canonical request preparation before policy evaluation.
+
+## Highlights
+
+- fail-closed by default
+- strict `.opencode-guard.jsonc` validation
+- canonical path enforcement with symlink denial
+- redacted host-facing decisions plus structured audit output
+- narrow OpenCode adapter for `read`, `write`, and `edit`
 
 ## Security Principles
 
@@ -80,6 +91,12 @@ const result = await evaluateOpenCodeToolCall({
 Use `result.hostMessage` for host-facing responses and `result.audit` for structured internal observability.
 
 This package is intentionally fail-closed and intentionally narrow. It is designed for file-oriented tool guarding, not general shell command policy enforcement.
+
+## Links
+
+- OpenCode adapter guide: `docs/opencode-adapter.md`
+- Release checklist: `docs/release-checklist.md`
+- Changelog: `CHANGELOG.md`
 
 ## Validation
 
