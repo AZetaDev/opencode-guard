@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- add permission-stage support for guarding `patch` operations by path
+- keep patch handling narrow and explicit instead of claiming unsupported payload parsing
+
 ## 0.1.1
 
 - rename native plugin option from `enabledTools` to clearer `guardedTools`

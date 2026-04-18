@@ -6,6 +6,7 @@ import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promis
 
 import {
   AUDIT_TARGET_PATH_KIND,
+  GUARDED_TOOL,
   createOpencodeGuardPlugin,
   evaluateHostOperation,
   evaluateOpenCodeToolCall,
@@ -1064,6 +1065,82 @@ test("createOpencodeGuardPlugin leaves non-guarded permission requests alone", a
 
     await hooks["permission.ask"](
       { type: "read", pattern: "../../README.md" },
+      output,
+    );
+
+    assert.equal(output.status, "ask");
+  });
+});
+
+test("createOpencodeGuardPlugin denies out-of-policy patch permission requests", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+
+    await mkdir(workspaceRoot, { recursive: true });
+    await writeFile(
+      path.join(workspaceRoot, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": [
+          {
+            "id": "allow-local-patch",
+            "action": "allow",
+            "command": "patch",
+            "pathPrefix": "${workspaceRoot.replaceAll("\\", "\\\\")}"
+          }
+        ]
+      }`,
+      "utf8",
+    );
+
+    const hooks = await createOpencodeGuardPlugin(
+      { directory: workspaceRoot },
+      { guardedTools: [GUARDED_TOOL.PATCH] },
+    );
+    const output = { status: "ask" };
+
+    await hooks["permission.ask"](
+      { type: "patch", pattern: "../../README.md" },
+      output,
+    );
+
+    assert.equal(output.status, "deny");
+  });
+});
+
+test("createOpencodeGuardPlugin allows in-policy patch permission requests to continue", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+
+    await mkdir(workspaceRoot, { recursive: true });
+    await writeFile(
+      path.join(workspaceRoot, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": [
+          {
+            "id": "allow-local-patch",
+            "action": "allow",
+            "command": "patch",
+            "pathPrefix": "${workspaceRoot.replaceAll("\\", "\\\\")}"
+          }
+        ]
+      }`,
+      "utf8",
+    );
+
+    const hooks = await createOpencodeGuardPlugin(
+      { directory: workspaceRoot },
+      { guardedTools: [GUARDED_TOOL.PATCH] },
+    );
+    const output = { status: "ask" };
+
+    await hooks["permission.ask"](
+      { type: "patch", pattern: "./README.md" },
       output,
     );
 

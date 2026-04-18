@@ -23,4 +23,5 @@ export {
   type OpenCodeToolEnvelope,
 } from "./opencode/types.js";
 export { createOpencodeGuardPlugin } from "./plugin/index.js";
-export type { OpencodeGuardPluginOptions } from "./plugin/index.js";
+export { GUARDED_TOOL } from "./plugin/index.js";
+export type { GuardedTool, OpencodeGuardPluginOptions } from "./plugin/index.js";

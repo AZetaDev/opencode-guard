@@ -356,6 +356,18 @@ The native adapter currently enforces the supported file-tool surface at two run
 
 This defense-in-depth approach is important because hosts may surface file mutations through permission requests before or alongside tool execution.
 
+Supported guarded tools today:
+
+- `read`
+- `write`
+- `edit`
+- `patch` at the permission stage
+
+Current limit:
+
+- `patch` is enforced from permission patterns, which is the real runtime path observed during AERIS testing
+- the plugin does not yet claim full generic patch-payload parsing at execution time
+
 If `guardedTools` is omitted, all three supported file tools are guarded.
 
 The host can use the result in a straightforward way:

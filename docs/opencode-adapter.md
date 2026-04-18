@@ -33,7 +33,11 @@ It is intentionally narrow:
 - hooks used:
   - `permission.ask`
   - `tool.execute.before`
-- enforced tools: `read`, `write`, `edit`
+- enforced tools:
+  - `read`
+  - `write`
+  - `edit`
+  - `patch` at the permission stage
 - non-target tools: ignored by the plugin
 - narrowing option: `guardedTools`
 
@@ -52,6 +56,12 @@ Everything else is denied before policy evaluation.
 That means unsupported tools do not fall through to a weaker code path. They are denied immediately.
 
 For guarded file tools, the adapter also evaluates permission requests before user confirmation can authorize a path that falls outside policy.
+
+Patch-specific note:
+
+- the current implementation supports `patch` via permission-stage path enforcement
+- this is based on the real runtime behavior observed during AERIS adoption testing
+- execution-time patch payload parsing is not claimed as a supported generic capability yet
 
 ## Required Envelope Shape
 

@@ -1,16 +1,25 @@
-import { evaluateOpenCodeToolCall } from "../opencode/adapter.js";
+import { evaluateHostOperation } from "../host/adapter.js";
 import { OPENCODE_FILE_TOOL, type OpenCodeFileTool } from "../opencode/types.js";
 
+export const GUARDED_TOOL = {
+  READ: OPENCODE_FILE_TOOL.READ,
+  WRITE: OPENCODE_FILE_TOOL.WRITE,
+  EDIT: OPENCODE_FILE_TOOL.EDIT,
+  PATCH: "patch",
+} as const;
+
+export type GuardedTool = (typeof GUARDED_TOOL)[keyof typeof GUARDED_TOOL];
+
 const DEFAULT_GUARDED_TOOLS = [
-  OPENCODE_FILE_TOOL.READ,
-  OPENCODE_FILE_TOOL.WRITE,
-  OPENCODE_FILE_TOOL.EDIT,
+  GUARDED_TOOL.READ,
+  GUARDED_TOOL.WRITE,
+  GUARDED_TOOL.EDIT,
 ] as const;
 
 export interface OpencodeGuardPluginOptions {
   configDirectory?: string;
   workspaceRoot?: string;
-  guardedTools?: OpenCodeFileTool[];
+  guardedTools?: GuardedTool[];
 }
 
 export interface PluginInputLike {
@@ -54,6 +63,10 @@ function resolveWorkspaceRoot(input: PluginInputLike, options?: OpencodeGuardPlu
   return options?.workspaceRoot?.trim() || input.directory;
 }
 
+function isOpenCodeEnvelopeTool(tool: string): tool is OpenCodeFileTool {
+  return tool === OPENCODE_FILE_TOOL.READ || tool === OPENCODE_FILE_TOOL.WRITE || tool === OPENCODE_FILE_TOOL.EDIT;
+}
+
 function readPermissionTargetPath(input: PermissionAskInputLike): string | null {
   if (typeof input.pattern === "string") {
     return input.pattern;
@@ -84,18 +97,12 @@ export async function createOpencodeGuardPlugin(input: PluginInputLike, options?
         return;
       }
 
-      const result = await evaluateOpenCodeToolCall({
+      const result = await evaluateHostOperation({
         configDirectory,
-        envelope: {
-          session: {
-            workspaceRoot,
-          },
-          tool: {
-            name: input.type,
-            input: {
-              filePath: targetPath,
-            },
-          },
+        input: {
+          command: input.type,
+          targetPath,
+          workspaceRoot,
         },
       });
 
@@ -108,16 +115,20 @@ export async function createOpencodeGuardPlugin(input: PluginInputLike, options?
         return;
       }
 
-      const result = await evaluateOpenCodeToolCall({
+      if (!isOpenCodeEnvelopeTool(event.tool)) {
+        // Patch is enforced at permission.ask because its runtime payload shape is not
+        // modeled here yet. Keeping execution-time handling narrow avoids fake support.
+        return;
+      }
+
+      const result = await evaluateHostOperation({
         configDirectory,
-        envelope: {
-          session: {
-            workspaceRoot,
-          },
-          tool: {
-            name: event.tool,
-            input: output.args,
-          },
+        input: {
+          command: event.tool,
+          targetPath: typeof (output.args as { filePath?: unknown })?.filePath === "string"
+            ? (output.args as { filePath: string }).filePath
+            : "",
+          workspaceRoot,
         },
       });
 
