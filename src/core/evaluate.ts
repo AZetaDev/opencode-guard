@@ -26,7 +26,7 @@ export function evaluateOperation(config: GuardConfig, request: PreparedOperatio
   const normalizedTargetPath = normalizePath(normalizeRequestValue(request.canonicalTargetPath));
 
   const matchedRule = config.rules.find((rule) => {
-    return rule.command === normalizedCommand && matchesPathPrefix(rule.pathPrefix, normalizedTargetPath);
+    return rule.commands.includes(normalizedCommand) && rule.pathPrefixes.some((pathPrefix) => matchesPathPrefix(pathPrefix, normalizedTargetPath));
   });
 
   if (matchedRule) {

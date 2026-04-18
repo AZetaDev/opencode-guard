@@ -1,13 +1,13 @@
 {
-  // Allow a narrow set of read/write/edit operations inside selected paths.
+  // Mix grouped and single-value rules to keep a policy concise.
   "version": 1,
   "defaultAction": "deny",
   "symlinkPolicy": "deny",
   "rules": [
     {
-      "id": "allow-read-docs",
+      "id": "allow-read-and-edit-docs",
       "action": "allow",
-      "command": "read",
+      "commands": ["read", "edit"],
       "pathPrefix": "/workspace/project/docs"
     },
     {
@@ -15,12 +15,6 @@
       "action": "allow",
       "command": "write",
       "pathPrefix": "/workspace/project/docs/drafts"
-    },
-    {
-      "id": "allow-edit-guides",
-      "action": "allow",
-      "command": "edit",
-      "pathPrefix": "/workspace/project/docs/guides"
     }
   ]
 }

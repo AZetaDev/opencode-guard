@@ -51,6 +51,7 @@ That means users can choose:
 - which commands are allowed or denied
 - which absolute normalized paths those rules apply to
 - the order of precedence between rules
+ - whether a rule uses single-value or grouped matching for commands and paths
 
 They cannot use configuration to disable the core fail-closed protections above.
 

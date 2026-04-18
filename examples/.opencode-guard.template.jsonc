@@ -16,6 +16,9 @@
   // Ordered rule list.
   // This is the main user-customizable policy layer.
   // Rules are checked from top to bottom, and the first matching rule wins.
+  // Each rule must use exactly one command form and exactly one path form:
+  // - command OR commands
+  // - pathPrefix OR pathPrefixes
   "rules": [
     {
       // Unique rule identifier used in audit output and decision reasons.
@@ -35,12 +38,15 @@
       "pathPrefix": "/workspace/project/README.md"
     },
     {
-      // Example explicit deny rule.
-      // This is optional, but useful when you want a specific audit reason.
-      "id": "deny-private-edit",
-      "action": "deny",
-      "command": "edit",
-      "pathPrefix": "/workspace/project/private"
+      // Example grouped rule.
+      // Use plural fields when one rule should cover multiple commands or path areas.
+      "id": "allow-docs-read-and-edit",
+      "action": "allow",
+      "commands": ["read", "edit"],
+      "pathPrefixes": [
+        "/workspace/project/docs",
+        "/workspace/project/shared"
+      ]
     }
   ]
 }

@@ -12,7 +12,9 @@ const RULE_KEYS = {
   ID: "id",
   ACTION: "action",
   COMMAND: "command",
+  COMMANDS: "commands",
   PATH_PREFIX: "pathPrefix",
+  PATH_PREFIXES: "pathPrefixes",
 } as const;
 
 const COMMAND_PATTERN = /^[a-z0-9:_-]+$/;
@@ -68,6 +70,65 @@ function readNonEmptyString(value: unknown, path: string, issues: ValidationIssu
   return normalizedValue;
 }
 
+function readNonEmptyStringArray(value: unknown, path: string, issues: ValidationIssue[]): string[] | null {
+  if (!Array.isArray(value)) {
+    issues.push({ path, message: "Expected an array of strings." });
+    return null;
+  }
+
+  if (value.length === 0) {
+    issues.push({ path, message: "Expected a non-empty array." });
+    return null;
+  }
+
+  const normalizedValues = value
+    .map((entry, index) => readNonEmptyString(entry, `${path}[${index}]`, issues))
+    .filter((entry): entry is string => entry !== null);
+
+  if (normalizedValues.length !== value.length) {
+    return null;
+  }
+
+  return normalizedValues;
+}
+
+function validateCommandToken(command: string, path: string, issues: ValidationIssue[]): void {
+  if (!COMMAND_PATTERN.test(command)) {
+    issues.push({ path, message: "Expected a lowercase command token." });
+  }
+}
+
+function validatePathPrefixValue(pathPrefix: string, path: string, issues: ValidationIssue[]): boolean {
+  if (!pathPrefix.startsWith("/")) {
+    issues.push({ path, message: "Expected an absolute path prefix." });
+    return false;
+  }
+
+  if (pathPrefix !== "/" && pathPrefix.endsWith("/")) {
+    issues.push({ path, message: "Trailing slash is not allowed." });
+    return false;
+  }
+
+  if (pathPrefix.includes("//") || pathPrefix.includes("/./") || pathPrefix.includes("/../") || pathPrefix.endsWith("/.") || pathPrefix.endsWith("/..")) {
+    issues.push({ path, message: "Path prefix must already be normalized." });
+    return false;
+  }
+
+  return true;
+}
+
+function isValidRuleShape(value: Record<string, unknown>): boolean {
+  const actualKeys = Object.keys(value).sort();
+  const validShapes = [
+    [RULE_KEYS.ACTION, RULE_KEYS.COMMAND, RULE_KEYS.ID, RULE_KEYS.PATH_PREFIX],
+    [RULE_KEYS.ACTION, RULE_KEYS.COMMAND, RULE_KEYS.ID, RULE_KEYS.PATH_PREFIXES],
+    [RULE_KEYS.ACTION, RULE_KEYS.COMMANDS, RULE_KEYS.ID, RULE_KEYS.PATH_PREFIX],
+    [RULE_KEYS.ACTION, RULE_KEYS.COMMANDS, RULE_KEYS.ID, RULE_KEYS.PATH_PREFIXES],
+  ].map((shape) => shape.slice().sort().join("|"));
+
+  return validShapes.includes(actualKeys.join("|"));
+}
+
 function validateRule(value: unknown, index: number, issues: ValidationIssue[]): GuardRule | null {
   const pathBase = `rules[${index}]`;
 
@@ -76,44 +137,62 @@ function validateRule(value: unknown, index: number, issues: ValidationIssue[]):
     return null;
   }
 
-  isExactKeySet(value, Object.values(RULE_KEYS), pathBase, issues);
+  if (!isValidRuleShape(value)) {
+    issues.push({ path: pathBase, message: "Expected exactly one command field and one path field." });
+  }
 
   const id = readNonEmptyString(value.id, `${pathBase}.id`, issues);
-  const command = readNonEmptyString(value.command, `${pathBase}.command`, issues);
-  const pathPrefix = readNonEmptyString(value.pathPrefix, `${pathBase}.pathPrefix`, issues);
+  const command = Object.prototype.hasOwnProperty.call(value, RULE_KEYS.COMMAND)
+    ? readNonEmptyString(value.command, `${pathBase}.command`, issues)
+    : null;
+  const commands = Object.prototype.hasOwnProperty.call(value, RULE_KEYS.COMMANDS)
+    ? readNonEmptyStringArray(value.commands, `${pathBase}.commands`, issues)
+    : null;
+  const pathPrefix = Object.prototype.hasOwnProperty.call(value, RULE_KEYS.PATH_PREFIX)
+    ? readNonEmptyString(value.pathPrefix, `${pathBase}.pathPrefix`, issues)
+    : null;
+  const pathPrefixes = Object.prototype.hasOwnProperty.call(value, RULE_KEYS.PATH_PREFIXES)
+    ? readNonEmptyStringArray(value.pathPrefixes, `${pathBase}.pathPrefixes`, issues)
+    : null;
 
   if (!isGuardAction(value.action)) {
     issues.push({ path: `${pathBase}.action`, message: "Expected 'allow' or 'deny'." });
   }
 
-  if (id === null || command === null || pathPrefix === null || !isGuardAction(value.action)) {
+  const normalizedCommands = command !== null ? [command] : commands;
+  const normalizedPathPrefixes = pathPrefix !== null ? [pathPrefix] : pathPrefixes;
+
+  if (
+    !isValidRuleShape(value) ||
+    id === null ||
+    normalizedCommands === null ||
+    normalizedPathPrefixes === null ||
+    !isGuardAction(value.action)
+  ) {
     return null;
   }
 
-  if (!COMMAND_PATTERN.test(command)) {
-    issues.push({ path: `${pathBase}.command`, message: "Expected a lowercase command token." });
+  for (const [index, normalizedCommand] of normalizedCommands.entries()) {
+    validateCommandToken(normalizedCommand, command !== null ? `${pathBase}.command` : `${pathBase}.commands[${index}]`, issues);
   }
 
-  if (!pathPrefix.startsWith("/")) {
-    issues.push({ path: `${pathBase}.pathPrefix`, message: "Expected an absolute path prefix." });
-    return null;
-  }
+  const areAllPathPrefixesValid = normalizedPathPrefixes.every((normalizedPathPrefix, index) => {
+    return validatePathPrefixValue(
+      normalizedPathPrefix,
+      pathPrefix !== null ? `${pathBase}.pathPrefix` : `${pathBase}.pathPrefixes[${index}]`,
+      issues,
+    );
+  });
 
-  if (pathPrefix !== "/" && pathPrefix.endsWith("/")) {
-    issues.push({ path: `${pathBase}.pathPrefix`, message: "Trailing slash is not allowed." });
-    return null;
-  }
-
-  if (pathPrefix.includes("//") || pathPrefix.includes("/./") || pathPrefix.includes("/../") || pathPrefix.endsWith("/.") || pathPrefix.endsWith("/..")) {
-    issues.push({ path: `${pathBase}.pathPrefix`, message: "Path prefix must already be normalized." });
+  if (!areAllPathPrefixesValid) {
     return null;
   }
 
   return {
     id,
     action: value.action,
-    command,
-    pathPrefix,
+    commands: normalizedCommands,
+    pathPrefixes: normalizedPathPrefixes,
   };
 }
 

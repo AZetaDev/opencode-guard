@@ -1,0 +1,17 @@
+{
+  // One grouped rule can cover multiple commands and multiple path areas.
+  "version": 1,
+  "defaultAction": "deny",
+  "symlinkPolicy": "deny",
+  "rules": [
+    {
+      "id": "allow-docs-and-shared-read-edit",
+      "action": "allow",
+      "commands": ["read", "edit"],
+      "pathPrefixes": [
+        "/workspace/project/docs",
+        "/workspace/project/shared"
+      ]
+    }
+  ]
+}

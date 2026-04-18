@@ -55,7 +55,68 @@ test("loadGuardConfig parses valid JSONC config", async () => {
     assert.equal(loadedConfig.config.defaultAction, "deny");
     assert.equal(loadedConfig.config.symlinkPolicy, "deny");
     assert.equal(loadedConfig.config.rules.length, 1);
+    assert.deepEqual(loadedConfig.config.rules[0].commands, ["read"]);
+    assert.deepEqual(loadedConfig.config.rules[0].pathPrefixes, ["/workspace/docs"]);
     assert.equal(loadedConfig.configPath, configPath);
+  });
+});
+
+test("loadGuardConfig accepts plural command and path fields", async () => {
+  await withTempDir(async (tempDir) => {
+    await writeFile(
+      path.join(tempDir, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": [
+          {
+            "id": "allow-docs-multi",
+            "action": "allow",
+            "commands": ["read", "edit"],
+            "pathPrefixes": ["/workspace/docs", "/workspace/shared"]
+          }
+        ]
+      }`,
+      "utf8",
+    );
+
+    const loadedConfig = await loadGuardConfig(tempDir);
+
+    assert.deepEqual(loadedConfig.config.rules[0].commands, ["read", "edit"]);
+    assert.deepEqual(loadedConfig.config.rules[0].pathPrefixes, ["/workspace/docs", "/workspace/shared"]);
+  });
+});
+
+test("loadGuardConfig rejects mixed singular and plural rule fields", async () => {
+  await withTempDir(async (tempDir) => {
+    await writeFile(
+      path.join(tempDir, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": [
+          {
+            "id": "invalid-mixed-rule",
+            "action": "allow",
+            "command": "read",
+            "commands": ["edit"],
+            "pathPrefix": "/workspace/docs"
+          }
+        ]
+      }`,
+      "utf8",
+    );
+
+    await assert.rejects(
+      () => loadGuardConfig(tempDir),
+      (error) => {
+        assert.ok(error instanceof GuardConfigError);
+        assert.ok(error.issues.some((issue) => issue.includes("Expected exactly one command field and one path field.")));
+        return true;
+      },
+    );
   });
 });
 
@@ -176,6 +237,53 @@ test("prepareOperationRequest and evaluateOperation allow matching canonical tar
     assert.equal(loadedFileContents, "# guide");
     assert.equal(decision.action, "allow");
     assert.equal(decision.matchedRuleId, "allow-docs-read");
+  });
+});
+
+test("evaluateOperation matches plural command and path rules", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    const docsDirectory = path.join(workspaceRoot, "docs");
+    const sharedDirectory = path.join(workspaceRoot, "shared");
+    const targetFile = path.join(sharedDirectory, "guide.md");
+
+    await mkdir(docsDirectory, { recursive: true });
+    await mkdir(sharedDirectory, { recursive: true });
+    await writeFile(targetFile, "guide", "utf8");
+    await writeFile(
+      path.join(workspaceRoot, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": [
+          {
+            "id": "allow-docs-and-shared",
+            "action": "allow",
+            "commands": ["read", "edit"],
+            "pathPrefixes": [
+              "${docsDirectory.replaceAll("\\", "\\\\")}",
+              "${sharedDirectory.replaceAll("\\", "\\\\")}"
+            ]
+          }
+        ]
+      }`,
+      "utf8",
+    );
+
+    const loadedConfig = await loadGuardConfig(workspaceRoot);
+    const preparedRequest = await prepareOperationRequest({
+      loadedConfig,
+      request: {
+        command: "edit",
+        targetPath: "./shared/guide.md",
+        workspaceRoot,
+      },
+    });
+    const decision = evaluateOperation(loadedConfig.config, preparedRequest);
+
+    assert.equal(decision.action, "allow");
+    assert.equal(decision.matchedRuleId, "allow-docs-and-shared");
   });
 });
 

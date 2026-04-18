@@ -3,8 +3,8 @@ import type { GuardAction, SymlinkPolicy } from "./constants.js";
 export interface GuardRule {
   id: string;
   action: GuardAction;
-  command: string;
-  pathPrefix: string;
+  commands: string[];
+  pathPrefixes: string[];
 }
 
 export interface GuardConfig {

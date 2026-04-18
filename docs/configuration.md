@@ -115,7 +115,14 @@ This is the main user-controlled policy layer in the current product.
 
 ## Rule Object
 
-Each rule must contain exactly these fields:
+Each rule must contain:
+
+- `id`
+- `action`
+- exactly one command form: `command` or `commands`
+- exactly one path form: `pathPrefix` or `pathPrefixes`
+
+Single-value form:
 
 ```jsonc
 {
@@ -125,6 +132,26 @@ Each rule must contain exactly these fields:
   "pathPrefix": "/workspace/project/README.md"
 }
 ```
+
+Grouped form:
+
+```jsonc
+{
+  "id": "allow-docs-read-and-edit",
+  "action": "allow",
+  "commands": ["read", "edit"],
+  "pathPrefixes": [
+    "/workspace/project/docs",
+    "/workspace/project/shared"
+  ]
+}
+```
+
+Invalid combinations:
+
+- using both `command` and `commands`
+- using both `pathPrefix` and `pathPrefixes`
+- omitting both command forms or both path forms
 
 ### `id`
 
@@ -160,6 +187,15 @@ Important distinction:
 - The generic host adapter can evaluate any exact command token.
 - The built-in OpenCode adapter currently maps only `read`, `write`, and `edit`.
 
+### `commands`
+
+- Type: array of strings
+- Required: no
+- Must be non-empty: yes
+- Use instead of `command` when one rule should cover multiple commands
+
+Every entry must satisfy the same token rules as `command`.
+
 ### `pathPrefix`
 
 - Type: string
@@ -187,6 +223,15 @@ Example:
 - Matches: `/workspace/project/docs`, `/workspace/project/docs/guide.md`
 - Does not match: `/workspace/project/docs-other`
 
+### `pathPrefixes`
+
+- Type: array of strings
+- Required: no
+- Must be non-empty: yes
+- Use instead of `pathPrefix` when one rule should cover multiple path areas
+
+Every entry must satisfy the same normalization and absolute-path rules as `pathPrefix`.
+
 ## Validation Rules
 
 The current implementation rejects all of the following:
@@ -194,6 +239,7 @@ The current implementation rejects all of the following:
 - missing required fields
 - unexpected top-level properties
 - unexpected rule properties
+- rule objects that mix singular and plural field forms
 - duplicate rule IDs
 - non-absolute path prefixes
 - non-normalized path prefixes
@@ -219,6 +265,7 @@ Supported today:
 
 - strict JSONC parsing with comments
 - ordered exact command + path-prefix rules
+- grouped rule matching with `commands` and `pathPrefixes`
 - explicit `allow` and `deny` rule actions
 - fail-closed default deny
 
@@ -247,5 +294,6 @@ See `examples/` for realistic ready-to-adapt policies:
 - `.opencode-guard.template.jsonc`
 - `basic-read-only.jsonc`
 - `docs-workspace.jsonc`
+- `multi-command-group.jsonc`
 - `mixed-file-tools.jsonc`
 - `explicit-deny-rule.jsonc`

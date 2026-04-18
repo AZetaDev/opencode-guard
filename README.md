@@ -241,12 +241,19 @@ Short version:
 - `defaultAction` must be `"deny"`
 - `symlinkPolicy` must be `"deny"`
 - `rules` is an ordered array of exact-match rules
+- each rule uses either `command` or `commands`
+- each rule uses either `pathPrefix` or `pathPrefixes`
 
 The first three settings are effectively part of the fixed protection model today:
 
 - users must include them
 - but the current implementation accepts only the hardened values above
 - the practical user-controlled layer is the `rules` array
+
+That rule layer is now flexible enough to be written in two styles:
+
+- small explicit rules using `command` + `pathPrefix`
+- grouped rules using `commands` + `pathPrefixes`
 
 Important limits:
 
