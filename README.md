@@ -349,7 +349,12 @@ To register the native OpenCode plugin adapter, add the built plugin module to t
 }
 ```
 
-The native adapter currently hooks `tool.execute.before` and enforces `opencode-guard` for the supported file-tool surface: `read`, `write`, and `edit`.
+The native adapter currently enforces the supported file-tool surface at two runtime points:
+
+- `permission.ask`
+- `tool.execute.before`
+
+This defense-in-depth approach is important because hosts may surface file mutations through permission requests before or alongside tool execution.
 
 If `guardedTools` is omitted, all three supported file tools are guarded.
 

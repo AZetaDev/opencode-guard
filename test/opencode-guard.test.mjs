@@ -1012,3 +1012,61 @@ test("createOpencodeGuardPlugin respects guardedTools narrowing", async () => {
     );
   });
 });
+
+test("createOpencodeGuardPlugin denies out-of-policy permission requests before confirmation", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+
+    await mkdir(workspaceRoot, { recursive: true });
+    await writeFile(
+      path.join(workspaceRoot, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": [
+          {
+            "id": "allow-local-edits",
+            "action": "allow",
+            "command": "edit",
+            "pathPrefix": "${workspaceRoot.replaceAll("\\", "\\\\")}"
+          }
+        ]
+      }`,
+      "utf8",
+    );
+
+    const hooks = await createOpencodeGuardPlugin(
+      { directory: workspaceRoot },
+      { guardedTools: ["edit"] },
+    );
+    const output = { status: "ask" };
+
+    await hooks["permission.ask"](
+      { type: "edit", pattern: "../../README.md" },
+      output,
+    );
+
+    assert.equal(output.status, "deny");
+  });
+});
+
+test("createOpencodeGuardPlugin leaves non-guarded permission requests alone", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    await mkdir(workspaceRoot, { recursive: true });
+
+    const hooks = await createOpencodeGuardPlugin(
+      { directory: workspaceRoot },
+      { guardedTools: ["write", "edit"] },
+    );
+    const output = { status: "ask" };
+
+    await hooks["permission.ask"](
+      { type: "read", pattern: "../../README.md" },
+      output,
+    );
+
+    assert.equal(output.status, "ask");
+  });
+});

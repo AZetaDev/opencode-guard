@@ -30,7 +30,9 @@ The repository now includes a native OpenCode plugin adapter.
 
 It is intentionally narrow:
 
-- hook used: `tool.execute.before`
+- hooks used:
+  - `permission.ask`
+  - `tool.execute.before`
 - enforced tools: `read`, `write`, `edit`
 - non-target tools: ignored by the plugin
 - narrowing option: `guardedTools`
@@ -48,6 +50,8 @@ Only these file-oriented tools are mapped:
 Everything else is denied before policy evaluation.
 
 That means unsupported tools do not fall through to a weaker code path. They are denied immediately.
+
+For guarded file tools, the adapter also evaluates permission requests before user confirmation can authorize a path that falls outside policy.
 
 ## Required Envelope Shape
 
@@ -104,6 +108,7 @@ Unexpected keys or wrong value types cause a fail-closed deny before policy eval
 
 ```text
 OpenCode envelope
+  -> adapter evaluates guarded permission requests when applicable
   -> adapter validates supported tool shape
   -> adapter maps to generic host request
   -> config is loaded from configDirectory
