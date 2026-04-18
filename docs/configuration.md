@@ -2,6 +2,11 @@
 
 This document covers every configuration option currently supported by `opencode-guard`.
 
+It is important to separate two things:
+
+- fixed protections enforced by the plugin itself
+- policy choices that users can customize in `.opencode-guard.jsonc`
+
 The runtime configuration filename is fixed:
 
 - `.opencode-guard.jsonc`
@@ -16,6 +21,31 @@ The canonical copyable template is:
 - Comments: supported
 - Trailing commas: not supported
 - Unknown properties: rejected
+
+## Fixed vs Customizable
+
+### Fixed Internal Protections
+
+These are enforced by code and are not open-ended user settings:
+
+- fail-closed behavior
+- strict object shape validation
+- default deny posture
+- symlink denial
+- workspace escape rejection
+- canonical path enforcement
+- runtime input validation
+- redacted host-facing output
+
+Even though `defaultAction` and `symlinkPolicy` appear in the config file, the current implementation accepts only the hardened values documented below.
+
+### User-Customizable Layer
+
+Users currently customize only the policy rule set:
+
+- which commands are explicitly allowed or denied
+- which absolute normalized path prefixes those rules apply to
+- the order in which those rules are checked
 
 ## Full Schema
 
@@ -61,6 +91,8 @@ Any other value is rejected.
 
 The secure MVP is globally fail-closed. `"allow"` is not supported as the default.
 
+This field is present in the config shape, but not meaningfully user-tunable in the current implementation.
+
 ### `symlinkPolicy`
 
 - Type: string
@@ -69,6 +101,8 @@ The secure MVP is globally fail-closed. `"allow"` is not supported as the defaul
 
 The secure MVP denies symlinked workspace roots, symlinked path segments, and symlinked target paths.
 
+This field is present in the config shape, but not meaningfully user-tunable in the current implementation.
+
 ### `rules`
 
 - Type: array
@@ -76,6 +110,8 @@ The secure MVP denies symlinked workspace roots, symlinked path segments, and sy
 - Order matters: yes
 
 Rules are checked in array order. The first matching rule wins.
+
+This is the main user-controlled policy layer in the current product.
 
 ## Rule Object
 
@@ -185,6 +221,13 @@ Supported today:
 - ordered exact command + path-prefix rules
 - explicit `allow` and `deny` rule actions
 - fail-closed default deny
+
+What makes this more than an ignore-pattern file:
+
+- it validates runtime input before evaluation
+- it canonicalizes paths instead of comparing raw strings only
+- it enforces non-editable internal protections before checking user rules
+- it produces structured decisions and audit-friendly output
 
 Not supported today:
 

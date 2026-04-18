@@ -6,6 +6,8 @@ The plugin is meant to reduce accidental or malicious execution of dangerous ope
 
 ## Current Decisions
 
+- Treat the plugin as a second enforcement layer above host/runtime configuration.
+- Keep core protections fixed in code instead of making them user-editable policy knobs.
 - Fail closed on invalid or missing config data.
 - Keep the configuration on global default deny only.
 - Load `.opencode-guard.jsonc` locally and reject parse or schema ambiguity.
@@ -25,6 +27,32 @@ The plugin is meant to reduce accidental or malicious execution of dangerous ope
 - No regex-based path matching in the initial evaluator.
 - No environment-variable expansion in config.
 - No shell snippets, hooks, or user-defined code.
+
+## Fixed Protection Base vs User Policy
+
+### Fixed Protection Base
+
+The following are internal protections implemented by the plugin itself:
+
+- input envelope validation
+- strict config shape validation
+- default deny requirement
+- symlink denial
+- canonical path enforcement
+- workspace-root containment
+- redacted host-facing messages
+
+### User Policy Layer
+
+Users currently control only the ordered rule set inside `.opencode-guard.jsonc`.
+
+That means users can choose:
+
+- which commands are allowed or denied
+- which absolute normalized paths those rules apply to
+- the order of precedence between rules
+
+They cannot use configuration to disable the core fail-closed protections above.
 
 ## Risks Still Open
 

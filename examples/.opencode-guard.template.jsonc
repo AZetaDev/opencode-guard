@@ -4,14 +4,17 @@
   "version": 1,
 
   // Global fallback action.
+  // This is part of the plugin's fixed protective base in the current MVP.
   // The secure MVP is intentionally fail-closed, so only "deny" is supported.
   "defaultAction": "deny",
 
   // Filesystem symlink handling.
+  // This is also part of the fixed protective base today.
   // The current implementation supports only "deny".
   "symlinkPolicy": "deny",
 
   // Ordered rule list.
+  // This is the main user-customizable policy layer.
   // Rules are checked from top to bottom, and the first matching rule wins.
   "rules": [
     {

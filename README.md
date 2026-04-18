@@ -7,6 +7,57 @@
 
 It decides whether a file operation should be allowed before the host runtime executes it.
 
+## Why It Exists
+
+`opencode.json` can define what a host/runtime is configured to do.
+
+`opencode-guard` adds a second security layer on top of that runtime configuration:
+
+- `opencode.json` is the host/runtime configuration layer
+- `opencode-guard` is the guarded enforcement layer before file-tool execution
+
+That matters because `opencode-guard` is not just an ignore-pattern list.
+
+It does more than hide files from normal workflows:
+
+- it validates the incoming tool request shape
+- it loads a strict local policy file
+- it canonicalizes the target path against a workspace root
+- it rejects unsafe filesystem conditions before policy matching
+- it returns a deterministic allow/deny decision with redacted host-facing output
+
+## Two Layers
+
+`opencode-guard` is easiest to understand as two stacked layers:
+
+### 1. Fixed Internal Protection Layer
+
+These protections are built into the code and are not user-editable in `.opencode-guard.jsonc`:
+
+- fail-closed behavior when config is missing, invalid, or ambiguous
+- strict config schema validation with no unknown properties
+- default-deny global posture
+- canonical path enforcement against a declared workspace root
+- workspace escape rejection
+- symlink denial for workspace roots, path segments, and target paths
+- malformed runtime envelope rejection
+- redacted host-facing decision messages
+- Linux-runtime rejection of Windows-style absolute syntax and backslash-separated paths
+
+### 2. User Policy Layer
+
+This is the part users can customize in `.opencode-guard.jsonc`:
+
+- ordered rules
+- per-rule `allow` or `deny`
+- exact command tokens
+- absolute normalized `pathPrefix` values
+
+In other words:
+
+- the guardrails are fixed by the plugin
+- the allow/deny policy inside those guardrails is customizable per project
+
 ## Start Here
 
 If you are new to the project, read the docs in this order:
@@ -46,15 +97,18 @@ The plugin loads a local `.opencode-guard.jsonc` file, validates it strictly, no
 
 This package is intentionally narrow. It is a strong secure MVP for file-oriented tool guarding, not a complete security platform.
 
+It should be thought of as a protective execution gate, not just a visibility filter.
+
 ## How It Works
 
 ```text
 Host tool call
   -> runtime adapter validates input
+  -> fixed internal protections reject malformed or unsafe requests
   -> .opencode-guard.jsonc is loaded and validated
   -> workspace root and target path are canonicalized
   -> unsafe paths are denied fail-closed
-  -> rules are checked in order
+  -> user policy rules are checked in order
   -> allow/deny decision is returned
 ```
 
@@ -187,6 +241,12 @@ Short version:
 - `defaultAction` must be `"deny"`
 - `symlinkPolicy` must be `"deny"`
 - `rules` is an ordered array of exact-match rules
+
+The first three settings are effectively part of the fixed protection model today:
+
+- users must include them
+- but the current implementation accepts only the hardened values above
+- the practical user-controlled layer is the `rules` array
 
 Important limits:
 
