@@ -42,6 +42,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test test",
     "validate": "npm run typecheck && npm test",
+    "prepack": "npm run validate",
     "pack:check": "npm pack --dry-run"
   },
   "devDependencies": {

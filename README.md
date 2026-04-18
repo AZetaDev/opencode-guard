@@ -23,6 +23,7 @@ Requirements:
 
 - Node `>=20.11.0`
 - Local policy file named `.opencode-guard.jsonc`
+- A host/runtime that can provide an explicit workspace root and file-tool envelope
 
 For local development in this repository:
 
@@ -59,6 +60,8 @@ npm run validate
 - Supported OpenCode tools: `read`, `write`, `edit`
 - Reference docs: `docs/opencode-adapter.md`
 - Example runtime envelope: `examples/opencode-runtime-envelope.json`
+- Release checklist: `docs/release-checklist.md`
+- Change summary scaffold: `CHANGELOG.md`
 
 ## Minimal Use
 
@@ -76,6 +79,8 @@ const result = await evaluateOpenCodeToolCall({
 
 Use `result.hostMessage` for host-facing responses and `result.audit` for structured internal observability.
 
+This package is intentionally fail-closed and intentionally narrow. It is designed for file-oriented tool guarding, not general shell command policy enforcement.
+
 ## Validation
 
 - `npm run typecheck`: strict TypeScript check
@@ -87,4 +92,4 @@ This repo intentionally relies on standard Node 20 tooling for validation. A pro
 
 ## Status
 
-This is still isolated from live OpenCode and AERIS runtime wiring. The next block should focus on final packaging/release readiness and any last targeted verification gaps.
+This strong secure MVP is release-gated for a narrow file-tool security plugin use case. Remaining work should be environment-specific integration verification rather than broader feature expansion.

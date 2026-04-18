@@ -11,9 +11,3 @@ export {
   type HostOperationInput,
   type HostReasonCode,
 } from "./types.js";
-export {
-  classifyTargetPathKind,
-  createReportedDecision,
-  type AuditContext,
-  type ReportedDecision,
-} from "./reporting.js";

@@ -8,7 +8,6 @@ export {
   type OpenCodeReadToolInput,
   type OpenCodeRuntimeEnvelope,
   type OpenCodeSessionEnvelope,
-  type OpenCodeToolCallMapping,
   type OpenCodeToolEnvelope,
   type OpenCodeWriteToolInput,
 } from "./types.js";
