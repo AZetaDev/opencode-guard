@@ -1,0 +1,20 @@
+{
+  // Allow reads anywhere in docs, but deny edits to the archived section.
+  "version": 1,
+  "defaultAction": "deny",
+  "symlinkPolicy": "deny",
+  "rules": [
+    {
+      "id": "deny-archive-edit",
+      "action": "deny",
+      "command": "edit",
+      "pathPrefix": "/workspace/project/docs/archive"
+    },
+    {
+      "id": "allow-docs-read",
+      "action": "allow",
+      "command": "read",
+      "pathPrefix": "/workspace/project/docs"
+    }
+  ]
+}

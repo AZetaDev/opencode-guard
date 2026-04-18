@@ -1,0 +1,26 @@
+{
+  // Allow a narrow set of read/write/edit operations inside selected paths.
+  "version": 1,
+  "defaultAction": "deny",
+  "symlinkPolicy": "deny",
+  "rules": [
+    {
+      "id": "allow-read-docs",
+      "action": "allow",
+      "command": "read",
+      "pathPrefix": "/workspace/project/docs"
+    },
+    {
+      "id": "allow-write-drafts",
+      "action": "allow",
+      "command": "write",
+      "pathPrefix": "/workspace/project/docs/drafts"
+    },
+    {
+      "id": "allow-edit-guides",
+      "action": "allow",
+      "command": "edit",
+      "pathPrefix": "/workspace/project/docs/guides"
+    }
+  ]
+}

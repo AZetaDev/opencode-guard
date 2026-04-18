@@ -74,3 +74,5 @@ Unexpected keys or wrong value types cause a fail-closed deny before policy eval
 ## Example
 
 See `examples/opencode-runtime-envelope.json` for a minimal `read` call example.
+
+For the matching policy file format, see `docs/configuration.md`.

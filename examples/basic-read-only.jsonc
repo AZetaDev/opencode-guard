@@ -1,0 +1,14 @@
+{
+  // Minimal policy: allow one specific file to be read.
+  "version": 1,
+  "defaultAction": "deny",
+  "symlinkPolicy": "deny",
+  "rules": [
+    {
+      "id": "allow-readme-read",
+      "action": "allow",
+      "command": "read",
+      "pathPrefix": "/workspace/project/README.md"
+    }
+  ]
+}

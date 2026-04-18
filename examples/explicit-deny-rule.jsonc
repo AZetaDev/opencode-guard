@@ -1,0 +1,20 @@
+{
+  // Default deny already blocks everything else; this explicit deny creates a clear audit reason.
+  "version": 1,
+  "defaultAction": "deny",
+  "symlinkPolicy": "deny",
+  "rules": [
+    {
+      "id": "deny-private-secrets-read",
+      "action": "deny",
+      "command": "read",
+      "pathPrefix": "/workspace/project/private/secrets"
+    },
+    {
+      "id": "allow-private-readme-read",
+      "action": "allow",
+      "command": "read",
+      "pathPrefix": "/workspace/project/private/README.md"
+    }
+  ]
+}
