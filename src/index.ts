@@ -25,3 +25,14 @@ export {
   type HostOperationInput,
   type HostReasonCode,
 } from "./host/types.js";
+export { evaluateOpenCodeToolCall } from "./opencode/adapter.js";
+export {
+  OPENCODE_FILE_TOOL,
+  type EvaluateOpenCodeToolCallOptions,
+  type OpenCodeEvaluationResult,
+  type OpenCodeFileTool,
+  type OpenCodeRuntimeEnvelope,
+  type OpenCodeSessionEnvelope,
+  type OpenCodeToolCallMapping,
+  type OpenCodeToolEnvelope,
+} from "./opencode/types.js";

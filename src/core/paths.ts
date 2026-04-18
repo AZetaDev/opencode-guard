@@ -23,15 +23,37 @@ export interface CanonicalPathInfo {
   targetPathExists: boolean;
 }
 
-function normalizeAbsolutePath(input: string): string {
-  const normalizedValue = path.normalize(input.trim());
+function hasWindowsDrivePrefix(value: string): boolean {
+  return /^[A-Za-z]:[\\/]/.test(value);
+}
 
-  if (normalizedValue.includes("\u0000")) {
-    throw new GuardPathError("Path contains a null byte.");
+function hasWindowsUncPrefix(value: string): boolean {
+  return value.startsWith("\\\\");
+}
+
+function validateRuntimePathSyntax(input: string, label: string): void {
+  if (input.includes("\u0000")) {
+    throw new GuardPathError(`${label} contains a null byte.`);
   }
 
+  if (input.includes("\\")) {
+    throw new GuardPathError(`${label} must use forward slashes in this runtime.`);
+  }
+
+  if (hasWindowsDrivePrefix(input) || hasWindowsUncPrefix(input)) {
+    throw new GuardPathError(`${label} uses unsupported Windows-style absolute syntax.`);
+  }
+}
+
+function normalizeAbsolutePath(input: string, label: string): string {
+  const trimmedInput = input.trim();
+  validateRuntimePathSyntax(trimmedInput, label);
+  const normalizedValue = path.normalize(trimmedInput);
+
+  validateRuntimePathSyntax(normalizedValue, label);
+
   if (!path.isAbsolute(normalizedValue)) {
-    throw new GuardPathError("Expected an absolute path.");
+    throw new GuardPathError(`${label} must be an absolute path.`);
   }
 
   if (normalizedValue !== path.parse(normalizedValue).root && normalizedValue.endsWith(path.sep)) {
@@ -105,14 +127,14 @@ async function assertNoSymlinkPathSegments(startPath: string, targetPath: string
 }
 
 export async function canonicalizeTargetPath(options: CanonicalizationOptions): Promise<CanonicalPathInfo> {
-  const normalizedWorkspaceRoot = normalizeAbsolutePath(options.workspaceRoot);
+  const normalizedWorkspaceRoot = normalizeAbsolutePath(options.workspaceRoot, "Workspace root");
 
   if (options.symlinkPolicy !== SYMLINK_POLICY.DENY) {
     throw new GuardPathError("Unsupported symlink policy.");
   }
 
   const workspaceRootRealPath = await realpath(normalizedWorkspaceRoot);
-  const normalizedWorkspaceRealPath = normalizeAbsolutePath(workspaceRootRealPath);
+  const normalizedWorkspaceRealPath = normalizeAbsolutePath(workspaceRootRealPath, "Workspace root");
 
   if (normalizedWorkspaceRealPath !== normalizedWorkspaceRoot) {
     throw new GuardPathError("Workspace root must not be a symlinked path.");
@@ -120,11 +142,13 @@ export async function canonicalizeTargetPath(options: CanonicalizationOptions): 
 
   await assertNoSymlink(normalizedWorkspaceRoot);
 
+  validateRuntimePathSyntax(options.targetPath.trim(), "Target path");
+
   const candidateTargetPath = path.isAbsolute(options.targetPath)
     ? options.targetPath
     : path.join(normalizedWorkspaceRoot, options.targetPath);
 
-  const normalizedTargetPath = normalizeAbsolutePath(candidateTargetPath);
+  const normalizedTargetPath = normalizeAbsolutePath(candidateTargetPath, "Target path");
 
   if (!isWithinParent(normalizedWorkspaceRoot, normalizedTargetPath)) {
     throw new GuardPathError("Target path escapes the workspace root.");
@@ -142,7 +166,7 @@ export async function canonicalizeTargetPath(options: CanonicalizationOptions): 
     };
   }
 
-  const targetRealPath = normalizeAbsolutePath(await realpath(normalizedTargetPath));
+  const targetRealPath = normalizeAbsolutePath(await realpath(normalizedTargetPath), "Target path");
 
   if (!isWithinParent(normalizedWorkspaceRoot, targetRealPath)) {
     throw new GuardPathError("Resolved target path escapes the workspace root.");

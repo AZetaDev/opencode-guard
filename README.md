@@ -24,6 +24,7 @@ This repository is intentionally isolated from the live AERIS runtime. It now in
 - Prepared request envelope for policy evaluation
 - Host adapter with fail-closed integration behavior
 - Structured audit output with redacted host-facing messages
+- OpenCode-style runtime adapter for file-oriented tool calls
 
 ## Planned Layout
 
@@ -43,4 +44,4 @@ This repo intentionally relies on standard Node 20 tooling for validation. A pro
 
 ## Status
 
-This is still isolated from OpenCode and AERIS runtime wiring. The next block should add runtime-specific host request mapping and broader platform/path verification.
+This is still isolated from live OpenCode and AERIS runtime wiring. The next block should add runtime-facing documentation/examples and broader platform/path verification.
