@@ -13,6 +13,24 @@ This repository is intentionally isolated from the live AERIS runtime. It now in
 - Avoid shell evaluation, dynamic code execution, and implicit trust in tool input.
 - Keep the bootstrap milestone globally fail-closed with default deny.
 
+## Install
+
+```bash
+npm install opencode-guard
+```
+
+Requirements:
+
+- Node `>=20.11.0`
+- Local policy file named `.opencode-guard.jsonc`
+
+For local development in this repository:
+
+```bash
+npm install
+npm run validate
+```
+
 ## Current Milestone
 
 - Standalone git repository under `~/workspace/aeris/plugins/opencode-guard/`
@@ -36,16 +54,34 @@ This repository is intentionally isolated from the live AERIS runtime. It now in
 
 ## OpenCode Adapter
 
-- Runtime entrypoint: `evaluateOpenCodeToolCall(...)`
-- Supported tools: `read`, `write`, `edit`
+- Root entrypoints: `evaluateOpenCodeToolCall(...)`, `evaluateHostOperation(...)`
+- Package subpaths: `opencode-guard/opencode`, `opencode-guard/host`
+- Supported OpenCode tools: `read`, `write`, `edit`
 - Reference docs: `docs/opencode-adapter.md`
 - Example runtime envelope: `examples/opencode-runtime-envelope.json`
+
+## Minimal Use
+
+```ts
+import { evaluateOpenCodeToolCall } from "opencode-guard";
+
+const result = await evaluateOpenCodeToolCall({
+  configDirectory: "/workspace/project",
+  envelope: {
+    session: { workspaceRoot: "/workspace/project" },
+    tool: { name: "read", input: { filePath: "./README.md" } },
+  },
+});
+```
+
+Use `result.hostMessage` for host-facing responses and `result.audit` for structured internal observability.
 
 ## Validation
 
 - `npm run typecheck`: strict TypeScript check
 - `npm test`: build plus Node-native tests
 - `npm run validate`: typecheck plus tests
+- `npm run pack:check`: verify publishable package contents
 
 This repo intentionally relies on standard Node 20 tooling for validation. A project-local Node runtime can be used when the host environment does not already provide a working `node` and `npm`.
 

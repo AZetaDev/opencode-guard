@@ -4,6 +4,12 @@
 
 Provide a small, fail-closed adapter from an OpenCode-style runtime envelope into the guarded host evaluation path.
 
+## Package Entry Points
+
+- Root import: `opencode-guard`
+- OpenCode-specific import: `opencode-guard/opencode`
+- Generic host adapter import: `opencode-guard/host`
+
 ## Supported Tool Coverage
 
 Only these file-oriented tools are mapped:

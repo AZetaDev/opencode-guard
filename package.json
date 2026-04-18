@@ -1,19 +1,37 @@
 {
   "name": "opencode-guard",
   "version": "0.1.0",
-  "description": "Security-first OpenCode policy plugin bootstrap.",
+  "description": "Security-first fail-closed policy guard for OpenCode-style file tool execution.",
   "type": "module",
   "license": "MIT",
   "private": false,
+  "sideEffects": false,
   "engines": {
     "node": ">=20.11.0"
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./host": {
+      "types": "./dist/host/index.d.ts",
+      "default": "./dist/host/index.js"
+    },
+    "./opencode": {
+      "types": "./dist/opencode/index.d.ts",
+      "default": "./dist/opencode/index.js"
     }
   },
+  "keywords": [
+    "security",
+    "plugin",
+    "opencode",
+    "policy",
+    "guard"
+  ],
   "files": [
     "dist",
     "README.md",
@@ -23,7 +41,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test test",
-    "validate": "npm run typecheck && npm test"
+    "validate": "npm run typecheck && npm test",
+    "pack:check": "npm pack --dry-run"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

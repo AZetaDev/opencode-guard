@@ -6,18 +6,16 @@ import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promis
 
 import {
   AUDIT_TARGET_PATH_KIND,
-  GuardConfigError,
-  GuardPathError,
-  canonicalizeTargetPath,
   evaluateHostOperation,
   evaluateOpenCodeToolCall,
-  evaluateOperation,
   HOST_FAILURE_STAGE,
   HOST_REASON_CODE,
-  loadGuardConfig,
   OPENCODE_FILE_TOOL,
-  prepareOperationRequest,
 } from "../dist/index.js";
+import { GuardConfigError, loadGuardConfig } from "../dist/config/load.js";
+import { canonicalizeTargetPath, GuardPathError } from "../dist/core/paths.js";
+import { evaluateOperation } from "../dist/core/evaluate.js";
+import { prepareOperationRequest } from "../dist/core/request.js";
 
 async function withTempDir(run) {
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "opencode-guard-"));
