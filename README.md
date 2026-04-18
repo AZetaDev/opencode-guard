@@ -124,6 +124,18 @@ In practice, that means the host can be configured one way, while `opencode-guar
 - file-tool calls that are not explicitly allowed by policy
 - ambiguous or invalid configuration
 
+## Default Behavior With No Local Policy File
+
+If a workspace or project does not contain `.opencode-guard.jsonc`, the plugin stays fail-closed.
+
+In practice that means:
+
+- guarded operations are denied
+- the host receives a redacted message that the security policy is unavailable
+- non-guarded tools are unaffected by the native plugin adapter configuration
+
+This is intentional. Missing local policy is treated as "not safely configured yet," not as implicit permission.
+
 ## What It Does Not Protect
 
 - arbitrary shell command execution policies
@@ -415,6 +427,8 @@ The first three settings are effectively part of the fixed protection model toda
 - users must include them
 - but the current implementation accepts only the hardened values above
 - the practical user-controlled layer is the `rules` array
+
+If `.opencode-guard.jsonc` does not exist in the project/workspace used by the host integration, guarded operations deny by default.
 
 That rule layer is now flexible enough to be written in two styles:
 

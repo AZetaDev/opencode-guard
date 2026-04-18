@@ -11,6 +11,18 @@ The runtime configuration filename is fixed:
 
 - `.opencode-guard.jsonc`
 
+## Missing File Behavior
+
+If `.opencode-guard.jsonc` is missing, the plugin does not fall back to a permissive mode.
+
+Instead:
+
+- config loading fails
+- guarded operations are denied
+- the host receives a redacted message indicating that the security policy could not be loaded safely
+
+This is part of the fixed fail-closed protection base.
+
 The canonical copyable template is:
 
 - `examples/.opencode-guard.template.jsonc`
