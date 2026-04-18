@@ -22,6 +22,19 @@ It does not bypass the core guard. It feeds into it.
 - Root import: `opencode-guard`
 - OpenCode-specific import: `opencode-guard/opencode`
 - Generic host adapter import: `opencode-guard/host`
+- Native plugin module import: `opencode-guard/plugin`
+
+## Native Plugin Adapter
+
+The repository now includes a native OpenCode plugin adapter.
+
+It is intentionally narrow:
+
+- hook used: `tool.execute.before`
+- enforced tools: `read`, `write`, `edit`
+- non-target tools: ignored by the plugin
+
+This keeps the integration aligned with the current secure MVP instead of pretending to cover the full runtime surface.
 
 ## Supported Tool Coverage
 
@@ -103,6 +116,16 @@ OpenCode envelope
 See `examples/opencode-runtime-envelope.json` for a minimal `read` call example.
 
 For the matching policy file format, see `docs/configuration.md`.
+
+Minimal plugin registration shape:
+
+```jsonc
+{
+  "plugin": [
+    "/absolute/path/to/opencode-guard/dist/plugin/index.js"
+  ]
+}
+```
 
 ## What The Host Gets Back
 

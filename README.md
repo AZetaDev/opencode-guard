@@ -266,6 +266,7 @@ npm run validate
 | `opencode-guard` | simple imports from the main package |
 | `opencode-guard/opencode` | OpenCode-style runtime envelopes |
 | `opencode-guard/host` | generic host integration |
+| `opencode-guard/plugin` | native OpenCode plugin module |
 
 ## Quick Start
 
@@ -315,6 +316,18 @@ if (result.decision.action === "deny") {
   console.log(result.hostMessage);
 }
 ```
+
+To register the native OpenCode plugin adapter, add the built plugin module to the host `plugin` array:
+
+```jsonc
+{
+  "plugin": [
+    "/absolute/path/to/node_modules/opencode-guard/dist/plugin/index.js"
+  ]
+}
+```
+
+The native adapter currently hooks `tool.execute.before` and enforces `opencode-guard` for the supported file-tool surface: `read`, `write`, and `edit`.
 
 The host can use the result in a straightforward way:
 

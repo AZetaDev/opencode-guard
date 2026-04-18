@@ -22,3 +22,5 @@ export {
   type OpenCodeSessionEnvelope,
   type OpenCodeToolEnvelope,
 } from "./opencode/types.js";
+export { createOpencodeGuardPlugin } from "./plugin/index.js";
+export type { OpencodeGuardPluginOptions } from "./plugin/index.js";

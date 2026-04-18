@@ -6,6 +6,7 @@ import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promis
 
 import {
   AUDIT_TARGET_PATH_KIND,
+  createOpencodeGuardPlugin,
   evaluateHostOperation,
   evaluateOpenCodeToolCall,
   HOST_FAILURE_STAGE,
@@ -913,5 +914,84 @@ test("evaluateOpenCodeToolCall denies malformed runtime envelopes fail-closed", 
     assert.equal(result.reasonCode, HOST_REASON_CODE.DENY_HOST_INPUT);
     assert.equal(result.audit.command, null);
     assert.equal(result.audit.targetPathKind, AUDIT_TARGET_PATH_KIND.UNKNOWN);
+  });
+});
+
+test("createOpencodeGuardPlugin allows supported file tools through native hook", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    const allowedDirectory = path.join(workspaceRoot, "allowed");
+    const allowedFile = path.join(allowedDirectory, "guide.md");
+
+    await mkdir(allowedDirectory, { recursive: true });
+    await writeFile(allowedFile, "guide", "utf8");
+    await writeFile(
+      path.join(workspaceRoot, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": [
+          {
+            "id": "allow-reads",
+            "action": "allow",
+            "command": "read",
+            "pathPrefix": "${allowedDirectory.replaceAll("\\", "\\\\")}"
+          }
+        ]
+      }`,
+      "utf8",
+    );
+
+    const hooks = await createOpencodeGuardPlugin({ directory: workspaceRoot });
+
+    await hooks["tool.execute.before"](
+      { tool: "read", sessionID: "s1", callID: "c1" },
+      { args: { filePath: "./allowed/guide.md" } },
+    );
+  });
+});
+
+test("createOpencodeGuardPlugin denies blocked file tools through native hook", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    const blockedDirectory = path.join(workspaceRoot, "blocked");
+
+    await mkdir(blockedDirectory, { recursive: true });
+    await writeFile(path.join(blockedDirectory, "secret.md"), "secret", "utf8");
+    await writeFile(
+      path.join(workspaceRoot, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": []
+      }`,
+      "utf8",
+    );
+
+    const hooks = await createOpencodeGuardPlugin({ directory: workspaceRoot });
+
+    await assert.rejects(
+      () => hooks["tool.execute.before"](
+        { tool: "read", sessionID: "s1", callID: "c1" },
+        { args: { filePath: "./blocked/secret.md" } },
+      ),
+      /Operation denied by local security policy/,
+    );
+  });
+});
+
+test("createOpencodeGuardPlugin ignores non-target tools", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    await mkdir(workspaceRoot, { recursive: true });
+
+    const hooks = await createOpencodeGuardPlugin({ directory: workspaceRoot });
+
+    await hooks["tool.execute.before"](
+      { tool: "bash", sessionID: "s1", callID: "c1" },
+      { args: { command: "pwd" } },
+    );
   });
 });
