@@ -51,9 +51,29 @@ That means users can choose:
 - which commands are allowed or denied
 - which absolute normalized paths those rules apply to
 - the order of precedence between rules
- - whether a rule uses single-value or grouped matching for commands and paths
+- whether a rule uses single-value or grouped matching for commands and paths
 
 They cannot use configuration to disable the core fail-closed protections above.
+
+## Compared With Pattern-Only Filtering
+
+This plugin should not be read as "just another ignore file."
+
+Pattern-only filtering and ignore-based approaches are often good at reducing noise or hiding paths from normal workflows. `opencode-guard` adds value in a different place: execution-time enforcement.
+
+That means the plugin:
+
+- validates input structure before evaluation
+- normalizes and contains paths before matching them
+- denies unsupported or malformed runtime tool calls
+- keeps a fixed internal protection base that project config cannot switch off
+
+Its scope is narrower on purpose:
+
+- file-oriented tool execution is in scope
+- broad shell-policy governance is out of scope
+
+That tradeoff is intentional. The project aims to be strong and predictable on a constrained surface rather than broad and weak.
 
 ## Risks Still Open
 

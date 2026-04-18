@@ -26,6 +26,36 @@ It does more than hide files from normal workflows:
 - it rejects unsafe filesystem conditions before policy matching
 - it returns a deterministic allow/deny decision with redacted host-facing output
 
+## Why Not Just Ignore Patterns?
+
+Simpler ignore-based approaches are useful when the goal is mainly:
+
+- hiding files from routine workflows
+- reducing accidental reads of obvious paths
+- applying lightweight path filtering
+
+`opencode-guard` is for a different job.
+
+It acts as an execution gate before a file-tool call runs.
+
+That makes it stronger than a pattern-only approach in a few important ways:
+
+- it validates the incoming request shape instead of trusting raw input
+- it canonicalizes paths against a workspace root before matching
+- it rejects workspace escape attempts and symlink-based path tricks
+- it enforces a fixed fail-closed base even if project policy is weak or incomplete
+- it returns structured allow/deny decisions instead of only filtering visibility
+
+Fairly stated, this does not make ignore-based tools obsolete.
+
+Pattern-based tools can still be a good fit for:
+
+- simple hiding or exclusion workflows
+- low-friction developer ergonomics
+- broad path filtering without execution-time enforcement
+
+`opencode-guard` is the better fit when you want a second enforcement layer for file-tool execution, not just a list of paths to ignore.
+
 ## Two Layers
 
 `opencode-guard` is easiest to understand as two stacked layers:
@@ -79,6 +109,8 @@ It is designed for hosts that can provide:
 
 The plugin loads a local `.opencode-guard.jsonc` file, validates it strictly, normalizes the target path, rejects unsafe path conditions, and returns an allow/deny decision.
 
+In practice, that means the host can be configured one way, while `opencode-guard` still makes a final guarded decision before the file operation proceeds.
+
 ## What It Protects
 
 - accidental access outside the declared workspace
@@ -98,6 +130,8 @@ The plugin loads a local `.opencode-guard.jsonc` file, validates it strictly, no
 This package is intentionally narrow. It is a strong secure MVP for file-oriented tool guarding, not a complete security platform.
 
 It should be thought of as a protective execution gate, not just a visibility filter.
+
+It is also intentionally narrower than a full policy engine for every possible tool type. Today it focuses on file-oriented tools where deterministic path enforcement provides the most value.
 
 ## How It Works
 
@@ -227,6 +261,8 @@ The built-in OpenCode adapter currently supports only:
 - `edit`
 
 Anything else is denied before policy evaluation.
+
+That is an intentional scope limit in the current product. The plugin is stronger on a narrow file-tool surface than it would be if it claimed broad execution coverage without equivalent enforcement.
 
 ## Configuration
 
