@@ -19,6 +19,7 @@ The plugin is meant to reduce accidental or malicious execution of dangerous ope
 - Keep raw target paths out of audit records to reduce accidental disclosure.
 - Map only a narrow OpenCode-style file-tool surface in this runtime adapter.
 - Deny unmappable or unsupported runtime tool calls before policy evaluation.
+- Require supported runtime tools to match explicit input shapes; unexpected fields are denied.
 - Reject Windows-style absolute syntax and backslash separators in this Linux runtime path layer.
 - No wildcard command execution model in the initial evaluator.
 - No regex-based path matching in the initial evaluator.
@@ -34,4 +35,4 @@ The plugin is meant to reduce accidental or malicious execution of dangerous ope
 
 ## Secure MVP Direction
 
-The next milestone should add runtime-facing examples and broader cross-platform path verification without widening the rule surface prematurely.
+The next milestone should focus on packaging/release readiness and any last targeted verification gaps without widening the rule surface prematurely.

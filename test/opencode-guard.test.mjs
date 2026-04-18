@@ -563,6 +563,103 @@ test("evaluateOpenCodeToolCall maps supported read calls through the guarded hos
   });
 });
 
+test("evaluateOpenCodeToolCall maps supported write calls through the guarded host path", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    const docsDirectory = path.join(workspaceRoot, "docs");
+    const targetFile = path.join(docsDirectory, "guide.md");
+
+    await mkdir(docsDirectory, { recursive: true });
+    await writeFile(
+      path.join(workspaceRoot, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": [
+          {
+            "id": "allow-docs-write",
+            "action": "allow",
+            "command": "write",
+            "pathPrefix": "${docsDirectory.replaceAll("\\", "\\\\")}"
+          }
+        ]
+      }`,
+      "utf8",
+    );
+
+    const result = await evaluateOpenCodeToolCall({
+      configDirectory: workspaceRoot,
+      envelope: {
+        session: {
+          workspaceRoot,
+        },
+        tool: {
+          name: OPENCODE_FILE_TOOL.WRITE,
+          input: {
+            filePath: targetFile,
+            content: "updated",
+          },
+        },
+      },
+    });
+
+    assert.equal(result.mappedToolName, "write");
+    assert.equal(result.decision.action, "allow");
+    assert.equal(result.reasonCode, HOST_REASON_CODE.ALLOW_RULE_MATCH);
+  });
+});
+
+test("evaluateOpenCodeToolCall maps supported edit calls through the guarded host path", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    const docsDirectory = path.join(workspaceRoot, "docs");
+    const targetFile = path.join(docsDirectory, "guide.md");
+
+    await mkdir(docsDirectory, { recursive: true });
+    await writeFile(targetFile, "before", "utf8");
+    await writeFile(
+      path.join(workspaceRoot, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": [
+          {
+            "id": "allow-docs-edit",
+            "action": "allow",
+            "command": "edit",
+            "pathPrefix": "${docsDirectory.replaceAll("\\", "\\\\")}"
+          }
+        ]
+      }`,
+      "utf8",
+    );
+
+    const result = await evaluateOpenCodeToolCall({
+      configDirectory: workspaceRoot,
+      envelope: {
+        session: {
+          workspaceRoot,
+        },
+        tool: {
+          name: OPENCODE_FILE_TOOL.EDIT,
+          input: {
+            filePath: "./docs/guide.md",
+            oldString: "before",
+            newString: "after",
+            replaceAll: false,
+          },
+        },
+      },
+    });
+
+    assert.equal(result.mappedToolName, "edit");
+    assert.equal(result.decision.action, "allow");
+    assert.equal(result.reasonCode, HOST_REASON_CODE.ALLOW_RULE_MATCH);
+  });
+});
+
 test("evaluateOpenCodeToolCall denies unsupported tool mapping before evaluation", async () => {
   await withTempDir(async (tempDir) => {
     const workspaceRoot = path.join(tempDir, "workspace");
@@ -589,6 +686,101 @@ test("evaluateOpenCodeToolCall denies unsupported tool mapping before evaluation
     assert.equal(result.reasonCode, HOST_REASON_CODE.DENY_HOST_INPUT);
     assert.equal(result.failureStage, HOST_FAILURE_STAGE.INPUT);
     assert.equal(result.audit.command, "bash");
+  });
+});
+
+test("evaluateOpenCodeToolCall denies supported tools with unexpected input keys", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    await mkdir(workspaceRoot, { recursive: true });
+
+    const result = await evaluateOpenCodeToolCall({
+      configDirectory: workspaceRoot,
+      envelope: {
+        session: {
+          workspaceRoot,
+        },
+        tool: {
+          name: OPENCODE_FILE_TOOL.READ,
+          input: {
+            filePath: "./docs/guide.md",
+            command: "ignored",
+          },
+        },
+      },
+    });
+
+    assert.equal(result.decision.action, "deny");
+    assert.equal(result.reasonCode, HOST_REASON_CODE.DENY_HOST_INPUT);
+    assert.equal(result.failureStage, HOST_FAILURE_STAGE.INPUT);
+  });
+});
+
+test("evaluateOpenCodeToolCall denies supported tools with wrong input types", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    await mkdir(workspaceRoot, { recursive: true });
+
+    const result = await evaluateOpenCodeToolCall({
+      configDirectory: workspaceRoot,
+      envelope: {
+        session: {
+          workspaceRoot,
+        },
+        tool: {
+          name: OPENCODE_FILE_TOOL.EDIT,
+          input: {
+            filePath: "./docs/guide.md",
+            oldString: "a",
+            newString: "b",
+            replaceAll: "yes",
+          },
+        },
+      },
+    });
+
+    assert.equal(result.decision.action, "deny");
+    assert.equal(result.reasonCode, HOST_REASON_CODE.DENY_HOST_INPUT);
+    assert.equal(result.failureStage, HOST_FAILURE_STAGE.INPUT);
+  });
+});
+
+test("canonicalizeTargetPath normalizes workspace roots with trailing slashes", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    const docsDirectory = path.join(workspaceRoot, "docs");
+    const targetFile = path.join(docsDirectory, "guide.md");
+
+    await mkdir(docsDirectory, { recursive: true });
+    await writeFile(targetFile, "guide", "utf8");
+
+    const result = await canonicalizeTargetPath({
+      workspaceRoot: `${workspaceRoot}/`,
+      targetPath: "./docs/guide.md",
+      symlinkPolicy: "deny",
+    });
+
+    assert.equal(result.workspaceRoot, workspaceRoot);
+    assert.equal(result.canonicalTargetPath, targetFile);
+    assert.equal(result.targetPathExists, true);
+  });
+});
+
+test("canonicalizeTargetPath rejects Windows-style workspace roots in this runtime", async () => {
+  await withTempDir(async () => {
+    await assert.rejects(
+      () =>
+        canonicalizeTargetPath({
+          workspaceRoot: "C:/workspace/project",
+          targetPath: "./docs/guide.md",
+          symlinkPolicy: "deny",
+        }),
+      (error) => {
+        assert.ok(error instanceof GuardPathError);
+        assert.match(error.message, /Windows-style absolute syntax/);
+        return true;
+      },
+    );
   });
 });
 

@@ -34,6 +34,13 @@ This repository is intentionally isolated from the live AERIS runtime. It now in
 - `docs/`: architecture and security model
 - `examples/`: sample `.opencode-guard.jsonc`
 
+## OpenCode Adapter
+
+- Runtime entrypoint: `evaluateOpenCodeToolCall(...)`
+- Supported tools: `read`, `write`, `edit`
+- Reference docs: `docs/opencode-adapter.md`
+- Example runtime envelope: `examples/opencode-runtime-envelope.json`
+
 ## Validation
 
 - `npm run typecheck`: strict TypeScript check
@@ -44,4 +51,4 @@ This repo intentionally relies on standard Node 20 tooling for validation. A pro
 
 ## Status
 
-This is still isolated from live OpenCode and AERIS runtime wiring. The next block should add runtime-facing documentation/examples and broader platform/path verification.
+This is still isolated from live OpenCode and AERIS runtime wiring. The next block should focus on final packaging/release readiness and any last targeted verification gaps.

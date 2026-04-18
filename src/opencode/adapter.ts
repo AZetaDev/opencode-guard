@@ -3,7 +3,16 @@ import { evaluateHostOperation } from "../host/adapter.js";
 import { createInputAuditContext, createReportedDecision } from "../host/reporting.js";
 import { classifyTargetPathKind } from "../host/reporting.js";
 import { HOST_FAILURE_STAGE, HOST_REASON_CODE } from "../host/types.js";
-import type { EvaluateOpenCodeToolCallOptions, OpenCodeEvaluationResult, OpenCodeFileTool, OpenCodeRuntimeEnvelope, OpenCodeToolCallMapping } from "./types.js";
+import type {
+  EvaluateOpenCodeToolCallOptions,
+  OpenCodeEditToolInput,
+  OpenCodeEvaluationResult,
+  OpenCodeFileTool,
+  OpenCodeReadToolInput,
+  OpenCodeRuntimeEnvelope,
+  OpenCodeToolCallMapping,
+  OpenCodeWriteToolInput,
+} from "./types.js";
 import { OPENCODE_FILE_TOOL } from "./types.js";
 
 const RUNTIME_NAME = "opencode" as const;
@@ -23,6 +32,76 @@ function readNonEmptyString(value: unknown): string | null {
 
   const normalizedValue = value.trim();
   return normalizedValue.length > 0 ? normalizedValue : null;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function hasExactKeys(value: Record<string, unknown>, expectedKeys: readonly string[]): boolean {
+  const actualKeys = Object.keys(value);
+
+  if (actualKeys.length !== expectedKeys.length) {
+    return false;
+  }
+
+  return expectedKeys.every((key) => Object.prototype.hasOwnProperty.call(value, key));
+}
+
+function isOpenCodeReadToolInput(value: unknown): value is OpenCodeReadToolInput {
+  if (!isObjectRecord(value)) {
+    return false;
+  }
+
+  if (!hasExactKeys(value, ["filePath"]) && !hasExactKeys(value, ["filePath", "offset"]) && !hasExactKeys(value, ["filePath", "limit"]) && !hasExactKeys(value, ["filePath", "offset", "limit"])) {
+    return false;
+  }
+
+  if (readNonEmptyString(value.filePath) === null) {
+    return false;
+  }
+
+  if (value.offset !== undefined && (!isFiniteNumber(value.offset) || value.offset < 1 || !Number.isInteger(value.offset))) {
+    return false;
+  }
+
+  if (value.limit !== undefined && (!isFiniteNumber(value.limit) || value.limit < 1 || !Number.isInteger(value.limit))) {
+    return false;
+  }
+
+  return true;
+}
+
+function isOpenCodeWriteToolInput(value: unknown): value is OpenCodeWriteToolInput {
+  if (!isObjectRecord(value) || !hasExactKeys(value, ["filePath", "content"])) {
+    return false;
+  }
+
+  return readNonEmptyString(value.filePath) !== null && typeof value.content === "string";
+}
+
+function isOpenCodeEditToolInput(value: unknown): value is OpenCodeEditToolInput {
+  if (!isObjectRecord(value)) {
+    return false;
+  }
+
+  if (!hasExactKeys(value, ["filePath", "oldString", "newString"]) && !hasExactKeys(value, ["filePath", "oldString", "newString", "replaceAll"])) {
+    return false;
+  }
+
+  if (readNonEmptyString(value.filePath) === null) {
+    return false;
+  }
+
+  if (typeof value.oldString !== "string" || typeof value.newString !== "string") {
+    return false;
+  }
+
+  if (value.replaceAll !== undefined && typeof value.replaceAll !== "boolean") {
+    return false;
+  }
+
+  return true;
 }
 
 function parseOpenCodeRuntimeEnvelope(envelope: unknown): OpenCodeRuntimeEnvelope | null {
@@ -47,20 +126,54 @@ function parseOpenCodeRuntimeEnvelope(envelope: unknown): OpenCodeRuntimeEnvelop
 }
 
 function mapOpenCodeToolInput(envelope: OpenCodeRuntimeEnvelope): OpenCodeToolCallMapping | null {
-  if (!isSupportedFileTool(envelope.tool.name) || !isObjectRecord(envelope.tool.input)) {
+  if (!isSupportedFileTool(envelope.tool.name)) {
     return null;
   }
 
-  const filePath = readNonEmptyString(envelope.tool.input.filePath);
-
-  if (filePath === null) {
-    return null;
+  if (envelope.tool.name === OPENCODE_FILE_TOOL.READ && isOpenCodeReadToolInput(envelope.tool.input)) {
+    return {
+      command: envelope.tool.name,
+      targetPath: envelope.tool.input.filePath.trim(),
+      workspaceRoot: envelope.session.workspaceRoot,
+    };
   }
 
+  if (envelope.tool.name === OPENCODE_FILE_TOOL.WRITE && isOpenCodeWriteToolInput(envelope.tool.input)) {
+    return {
+      command: envelope.tool.name,
+      targetPath: envelope.tool.input.filePath.trim(),
+      workspaceRoot: envelope.session.workspaceRoot,
+    };
+  }
+
+  if (envelope.tool.name === OPENCODE_FILE_TOOL.EDIT && isOpenCodeEditToolInput(envelope.tool.input)) {
+    return {
+      command: envelope.tool.name,
+      targetPath: envelope.tool.input.filePath.trim(),
+      workspaceRoot: envelope.session.workspaceRoot,
+    };
+  }
+
+  return null;
+}
+
+function readMappedTargetPath(toolInput: unknown): unknown {
+  return isObjectRecord(toolInput) ? toolInput.filePath : undefined;
+}
+
+function readMappedToolName(envelope: OpenCodeRuntimeEnvelope | null): string | null {
+  return envelope === null ? null : envelope.tool.name;
+}
+
+function denyUnmappableEnvelope(parsedEnvelope: OpenCodeRuntimeEnvelope | null): OpenCodeEvaluationResult {
+  return denyRuntimeInput(readMappedToolName(parsedEnvelope), parsedEnvelope === null ? undefined : readMappedTargetPath(parsedEnvelope.tool.input));
+}
+
+function toOpenCodeResult(result: Awaited<ReturnType<typeof evaluateHostOperation>>, mappedToolName: string | null): OpenCodeEvaluationResult {
   return {
-    command: envelope.tool.name,
-    targetPath: filePath,
-    workspaceRoot: envelope.session.workspaceRoot,
+    ...result,
+    runtime: RUNTIME_NAME,
+    mappedToolName,
   };
 }
 
@@ -87,14 +200,13 @@ export async function evaluateOpenCodeToolCall(options: EvaluateOpenCodeToolCall
   const parsedEnvelope = parseOpenCodeRuntimeEnvelope(options.envelope);
 
   if (parsedEnvelope === null) {
-    return denyRuntimeInput(null, undefined);
+    return denyUnmappableEnvelope(null);
   }
 
   const mappedCall = mapOpenCodeToolInput(parsedEnvelope);
 
   if (mappedCall === null) {
-    const rawInput = isObjectRecord(parsedEnvelope.tool.input) ? parsedEnvelope.tool.input.filePath : undefined;
-    return denyRuntimeInput(parsedEnvelope.tool.name, rawInput);
+    return denyUnmappableEnvelope(parsedEnvelope);
   }
 
   const result = await evaluateHostOperation({
@@ -102,9 +214,5 @@ export async function evaluateOpenCodeToolCall(options: EvaluateOpenCodeToolCall
     input: mappedCall,
   });
 
-  return {
-    ...result,
-    runtime: RUNTIME_NAME,
-    mappedToolName: mappedCall.command,
-  };
+  return toOpenCodeResult(result, mappedCall.command);
 }

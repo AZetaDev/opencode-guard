@@ -1,0 +1,13 @@
+{
+  "session": {
+    "workspaceRoot": "/workspace/project"
+  },
+  "tool": {
+    "name": "read",
+    "input": {
+      "filePath": "./README.md",
+      "offset": 1,
+      "limit": 50
+    }
+  }
+}

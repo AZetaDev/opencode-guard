@@ -17,6 +17,24 @@ export interface OpenCodeToolEnvelope {
   input: unknown;
 }
 
+export interface OpenCodeReadToolInput {
+  filePath: string;
+  offset?: number;
+  limit?: number;
+}
+
+export interface OpenCodeWriteToolInput {
+  filePath: string;
+  content: string;
+}
+
+export interface OpenCodeEditToolInput {
+  filePath: string;
+  oldString: string;
+  newString: string;
+  replaceAll?: boolean;
+}
+
 export interface OpenCodeRuntimeEnvelope {
   session: OpenCodeSessionEnvelope;
   tool: OpenCodeToolEnvelope;
