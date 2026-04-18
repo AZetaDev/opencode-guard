@@ -6,6 +6,10 @@ The runtime configuration filename is fixed:
 
 - `.opencode-guard.jsonc`
 
+The canonical copyable template is:
+
+- `examples/.opencode-guard.template.jsonc`
+
 ## Format
 
 - File type: JSONC
@@ -30,6 +34,14 @@ The runtime configuration filename is fixed:
   ]
 }
 ```
+
+## Canonical Commented Template
+
+If you want the exact JSONC shape with line-by-line comments, start with:
+
+- `examples/.opencode-guard.template.jsonc`
+
+That file is intended to be copied into a workspace and renamed to `.opencode-guard.jsonc`.
 
 ## Top-Level Fields
 
@@ -189,6 +201,7 @@ Not supported today:
 
 See `examples/` for realistic ready-to-adapt policies:
 
+- `.opencode-guard.template.jsonc`
 - `basic-read-only.jsonc`
 - `docs-workspace.jsonc`
 - `mixed-file-tools.jsonc`

@@ -7,6 +7,15 @@
 
 It decides whether a file operation should be allowed before the host runtime executes it.
 
+## Start Here
+
+If you are new to the project, read the docs in this order:
+
+1. `README.md` for what the plugin does and how it is used
+2. `docs/configuration.md` for the exact `.opencode-guard.jsonc` structure
+3. `examples/.opencode-guard.template.jsonc` for a complete commented template you can copy
+4. `examples/` for smaller policy examples
+
 ## What It Is
 
 `opencode-guard` is a small policy engine for local file-tool execution.
@@ -78,7 +87,15 @@ npm run validate
 
 ## Quick Start
 
-Create a local `.opencode-guard.jsonc` file:
+Create a local `.opencode-guard.jsonc` file.
+
+The easiest starting point is:
+
+- copy `examples/.opencode-guard.template.jsonc`
+- rename it to `.opencode-guard.jsonc`
+- replace the sample absolute paths with paths from your own workspace
+
+Minimal example:
 
 ```jsonc
 {
@@ -162,6 +179,7 @@ Anything else is denied before policy evaluation.
 All supported `.opencode-guard.jsonc` options are documented in:
 
 - `docs/configuration.md`
+- `examples/.opencode-guard.template.jsonc`
 
 Short version:
 
@@ -182,6 +200,7 @@ Important limits:
 
 The `examples/` directory contains copy-ready examples:
 
+- `examples/.opencode-guard.template.jsonc`
 - `examples/basic-read-only.jsonc`
 - `examples/docs-workspace.jsonc`
 - `examples/mixed-file-tools.jsonc`

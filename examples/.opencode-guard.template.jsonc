@@ -1,0 +1,43 @@
+{
+  // Schema version.
+  // The current implementation supports only version 1.
+  "version": 1,
+
+  // Global fallback action.
+  // The secure MVP is intentionally fail-closed, so only "deny" is supported.
+  "defaultAction": "deny",
+
+  // Filesystem symlink handling.
+  // The current implementation supports only "deny".
+  "symlinkPolicy": "deny",
+
+  // Ordered rule list.
+  // Rules are checked from top to bottom, and the first matching rule wins.
+  "rules": [
+    {
+      // Unique rule identifier used in audit output and decision reasons.
+      "id": "allow-readme-read",
+
+      // Per-rule action.
+      // Supported values are "allow" and "deny".
+      "action": "allow",
+
+      // Exact command token.
+      // Examples include read, write, edit, or another lowercase host command.
+      "command": "read",
+
+      // Absolute normalized path prefix.
+      // This can match a single file or a directory tree under the prefix.
+      // Must start with / and must already be normalized.
+      "pathPrefix": "/workspace/project/README.md"
+    },
+    {
+      // Example explicit deny rule.
+      // This is optional, but useful when you want a specific audit reason.
+      "id": "deny-private-edit",
+      "action": "deny",
+      "command": "edit",
+      "pathPrefix": "/workspace/project/private"
+    }
+  ]
+}
