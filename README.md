@@ -417,6 +417,8 @@ The `examples/` directory contains copy-ready examples:
 
 Copy one of the `.jsonc` examples to your workspace as `.opencode-guard.jsonc` and then adjust the absolute paths for your environment.
 
+If you only want one starting point, begin with `examples/.opencode-guard.template.jsonc`.
+
 ## Documentation Map
 
 - OpenCode adapter guide: `docs/opencode-adapter.md`
