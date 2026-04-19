@@ -6,9 +6,10 @@ export const GUARDED_TOOL = {
   WRITE: OPENCODE_FILE_TOOL.WRITE,
   EDIT: OPENCODE_FILE_TOOL.EDIT,
   PATCH: "patch",
+  APPLY_PATCH: "apply_patch",
 } as const;
 
-export type GuardedTool = (typeof GUARDED_TOOL)[keyof typeof GUARDED_TOOL];
+export type GuardedTool = Exclude<(typeof GUARDED_TOOL)[keyof typeof GUARDED_TOOL], "apply_patch">;
 
 const DEFAULT_GUARDED_TOOLS = [
   GUARDED_TOOL.READ,
@@ -79,6 +80,59 @@ function readPermissionTargetPath(input: PermissionAskInputLike): string | null 
   return null;
 }
 
+function readToolTargetPath(args: unknown): string | null {
+  if (typeof args !== "object" || args === null) {
+    return null;
+  }
+
+  const input = args as Record<string, unknown>;
+  return typeof input.filePath === "string" ? input.filePath : null;
+}
+
+function extractApplyPatchTargets(args: unknown): string[] | null {
+  if (typeof args !== "object" || args === null) {
+    return null;
+  }
+
+  const input = args as Record<string, unknown>;
+
+  if (typeof input.patchText !== "string") {
+    return null;
+  }
+
+  const matches = [...input.patchText.matchAll(/^(?:\*\*\* Update File:|\*\*\* Add File:|\*\*\* Delete File:)\s+(.+)$/gm)];
+
+  if (matches.length === 0) {
+    return null;
+  }
+
+  const targets = matches
+    .map((match) => match[1]?.trim() ?? "")
+    .filter((target) => target.length > 0);
+
+  if (targets.length !== matches.length) {
+    return null;
+  }
+
+  return [...new Set(targets)];
+}
+
+async function evaluateGuardedTarget(
+  configDirectory: string,
+  workspaceRoot: string,
+  command: string,
+  targetPath: string,
+): Promise<ReturnType<typeof evaluateHostOperation>> {
+  return evaluateHostOperation({
+    configDirectory,
+    input: {
+      command,
+      targetPath,
+      workspaceRoot,
+    },
+  });
+}
+
 export async function createOpencodeGuardPlugin(input: PluginInputLike, options?: OpencodeGuardPluginOptions): Promise<PluginHooksLike> {
   const guardedTools = resolveGuardedTools(options);
   const configDirectory = resolveConfigDirectory(input, options);
@@ -97,40 +151,49 @@ export async function createOpencodeGuardPlugin(input: PluginInputLike, options?
         return;
       }
 
-      const result = await evaluateHostOperation({
-        configDirectory,
-        input: {
-          command: input.type,
-          targetPath,
-          workspaceRoot,
-        },
-      });
+      const result = await evaluateGuardedTarget(configDirectory, workspaceRoot, input.type, targetPath);
 
       if (result.decision.action === "deny") {
         output.status = "deny";
       }
     },
     "tool.execute.before": async (event, output) => {
-      if (!guardedTools.has(event.tool)) {
+      const isGuardedStandardTool = guardedTools.has(event.tool);
+      const isGuardedApplyPatch = event.tool === GUARDED_TOOL.APPLY_PATCH && guardedTools.has(GUARDED_TOOL.PATCH);
+
+      if (!isGuardedStandardTool && !isGuardedApplyPatch) {
+        return;
+      }
+
+      if (isGuardedApplyPatch) {
+        const targetPaths = extractApplyPatchTargets(output.args);
+
+        if (targetPaths === null) {
+          throw new Error("opencode-guard denied apply_patch: unsupported or ambiguous patch payload.");
+        }
+
+        for (const targetPath of targetPaths) {
+          const result = await evaluateGuardedTarget(configDirectory, workspaceRoot, GUARDED_TOOL.PATCH, targetPath);
+
+          if (result.decision.action === "deny") {
+            throw new Error(`opencode-guard denied apply_patch: ${result.hostMessage}`);
+          }
+        }
+
         return;
       }
 
       if (!isOpenCodeEnvelopeTool(event.tool)) {
-        // Patch is enforced at permission.ask because its runtime payload shape is not
-        // modeled here yet. Keeping execution-time handling narrow avoids fake support.
         return;
       }
 
-      const result = await evaluateHostOperation({
-        configDirectory,
-        input: {
-          command: event.tool,
-          targetPath: typeof (output.args as { filePath?: unknown })?.filePath === "string"
-            ? (output.args as { filePath: string }).filePath
-            : "",
-          workspaceRoot,
-        },
-      });
+      const targetPath = readToolTargetPath(output.args);
+
+      if (targetPath === null) {
+        throw new Error(`opencode-guard denied ${event.tool}: unsupported or ambiguous tool payload.`);
+      }
+
+      const result = await evaluateGuardedTarget(configDirectory, workspaceRoot, event.tool, targetPath);
 
       if (result.decision.action === "deny") {
         throw new Error(`opencode-guard denied ${event.tool}: ${result.hostMessage}`);

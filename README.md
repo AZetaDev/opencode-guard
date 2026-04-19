@@ -362,11 +362,13 @@ Supported guarded tools today:
 - `write`
 - `edit`
 - `patch` at the permission stage
+- `apply_patch` at `tool.execute.before` via extracted patch target paths
 
 Current limit:
 
 - `patch` is enforced from permission patterns, which is the real runtime path observed during AERIS testing
 - the plugin does not yet claim full generic patch-payload parsing at execution time
+- `apply_patch` support is intentionally narrow: the patch payload must expose file targets through standard `*** Update File:`, `*** Add File:`, or `*** Delete File:` headers or it is denied
 
 If `guardedTools` is omitted, all three supported file tools are guarded.
 

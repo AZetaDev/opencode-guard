@@ -38,6 +38,7 @@ It is intentionally narrow:
   - `write`
   - `edit`
   - `patch` at the permission stage
+  - `apply_patch` at `tool.execute.before`
 - non-target tools: ignored by the plugin
 - narrowing option: `guardedTools`
 
@@ -62,6 +63,15 @@ Patch-specific note:
 - the current implementation supports `patch` via permission-stage path enforcement
 - this is based on the real runtime behavior observed during AERIS adoption testing
 - execution-time patch payload parsing is not claimed as a supported generic capability yet
+
+Apply-patch note:
+
+- the current implementation supports `apply_patch` only when file targets can be extracted from patch headers
+- supported headers are:
+  - `*** Update File:`
+  - `*** Add File:`
+  - `*** Delete File:`
+- if file targets are missing or ambiguous, the plugin denies the mutation attempt
 
 ## Required Envelope Shape
 

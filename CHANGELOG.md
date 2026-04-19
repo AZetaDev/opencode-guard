@@ -3,6 +3,7 @@
 ## 0.1.2
 
 - add permission-stage support for guarding `patch` operations by path
+- add execution-stage guarding for OpenCode `apply_patch` based on extracted patch target paths
 - keep patch handling narrow and explicit instead of claiming unsupported payload parsing
 
 ## 0.1.1

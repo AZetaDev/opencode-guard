@@ -1147,3 +1147,121 @@ test("createOpencodeGuardPlugin allows in-policy patch permission requests to co
     assert.equal(output.status, "ask");
   });
 });
+
+test("createOpencodeGuardPlugin denies out-of-policy apply_patch payloads", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    const allowedDirectory = path.join(workspaceRoot, "allowed");
+
+    await mkdir(allowedDirectory, { recursive: true });
+    await writeFile(
+      path.join(workspaceRoot, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": [
+          {
+            "id": "allow-local-patch",
+            "action": "allow",
+            "command": "patch",
+            "pathPrefix": "${allowedDirectory.replaceAll("\\", "\\\\")}"
+          }
+        ]
+      }`,
+      "utf8",
+    );
+
+    const hooks = await createOpencodeGuardPlugin(
+      { directory: workspaceRoot },
+      { guardedTools: [GUARDED_TOOL.PATCH] },
+    );
+
+    await assert.rejects(
+      () => hooks["tool.execute.before"](
+        { tool: "apply_patch", sessionID: "s1", callID: "c1" },
+        {
+          args: {
+            patchText: `*** Begin Patch\n*** Update File: ../README.md\n@@\n-old\n+new\n*** End Patch`,
+          },
+        },
+      ),
+      /target path rejected by security policy/i,
+    );
+  });
+});
+
+test("createOpencodeGuardPlugin allows in-policy apply_patch payloads", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    const allowedDirectory = path.join(workspaceRoot, "allowed");
+
+    await mkdir(allowedDirectory, { recursive: true });
+    await writeFile(path.join(allowedDirectory, "file.txt"), "before", "utf8");
+    await writeFile(
+      path.join(workspaceRoot, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": [
+          {
+            "id": "allow-local-patch",
+            "action": "allow",
+            "command": "patch",
+            "pathPrefix": "${allowedDirectory.replaceAll("\\", "\\\\")}"
+          }
+        ]
+      }`,
+      "utf8",
+    );
+
+    const hooks = await createOpencodeGuardPlugin(
+      { directory: workspaceRoot },
+      { guardedTools: [GUARDED_TOOL.PATCH] },
+    );
+
+    await hooks["tool.execute.before"](
+      { tool: "apply_patch", sessionID: "s1", callID: "c1" },
+      {
+        args: {
+          patchText: `*** Begin Patch\n*** Update File: ./allowed/file.txt\n@@\n-before\n+after\n*** End Patch`,
+        },
+      },
+    );
+  });
+});
+
+test("createOpencodeGuardPlugin denies ambiguous apply_patch payloads", async () => {
+  await withTempDir(async (tempDir) => {
+    const workspaceRoot = path.join(tempDir, "workspace");
+    await mkdir(workspaceRoot, { recursive: true });
+    await writeFile(
+      path.join(workspaceRoot, ".opencode-guard.jsonc"),
+      `{
+        "version": 1,
+        "defaultAction": "deny",
+        "symlinkPolicy": "deny",
+        "rules": []
+      }`,
+      "utf8",
+    );
+
+    const hooks = await createOpencodeGuardPlugin(
+      { directory: workspaceRoot },
+      { guardedTools: [GUARDED_TOOL.PATCH] },
+    );
+
+    await assert.rejects(
+      () => hooks["tool.execute.before"](
+        { tool: "apply_patch", sessionID: "s1", callID: "c1" },
+        {
+          args: {
+            patchText: "*** Begin Patch\n@@\n-old\n+new\n*** End Patch",
+          },
+        },
+      ),
+      /unsupported or ambiguous patch payload/i,
+    );
+  });
+});
