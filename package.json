@@ -1,6 +1,6 @@
 {
   "name": "opencode-guard",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Security-first fail-closed policy guard for OpenCode-style file tool execution.",
   "type": "module",
   "license": "MIT",

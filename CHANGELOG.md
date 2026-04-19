@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- validate the plugin against real OpenCode mutation flow rather than config-only assumptions
+- guard `write`, `edit`, `patch`, and OpenCode `apply_patch` mutation paths within the current supported model
+- tighten the native plugin adapter around the actual runtime lifecycle observed during AERIS adoption testing
+
 ## 0.1.2
 
 - add permission-stage support for guarding `patch` operations by path
